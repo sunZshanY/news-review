@@ -51,9 +51,9 @@ news-review/
 新闻数据流程：`main.py` 中的 `NewsBackend` 通过后台线程抓取新闻接口，经 Qt 信号推送到 QML 界面渲染。
 
 ## 注意声明 / Note the statement
-> 本插件开发使用ClassWidgets SDK 0.6.0
+ 1. 本插件开发使用ClassWidgets SDK 0.6.0
 
-> 此插件使用deepseek-v4-pro和mimo-v2.5-pro开发
+ 2. 此插件使用deepseek-v4-pro和mimo-v2.5-pro开发
 
 ## 版权 / License
 
