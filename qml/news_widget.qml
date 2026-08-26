@@ -8,8 +8,8 @@ Widget {
     id: root
 
     text: qsTr("今日新闻")
-    implicitWidth: 380
-    height: miniMode ? 32 : 48
+    implicitWidth: 300
+    height: miniMode ? 32 : 40
 
     // 由 WidgetLoader 注入：
     // property var backend  （基类已有）
@@ -17,7 +17,6 @@ Widget {
 
     property var newsData: ({ date: "", updated: "", source: "", domestic: [], international: [] })
     property string status: "idle"
-    property int currentTab: 0
 
     readonly property bool isDark: Theme.isDark()
     readonly property color textColor: Colors.proxy.textColor !== undefined
@@ -37,11 +36,21 @@ Widget {
 
     readonly property var domesticList: (newsData && newsData.domestic) ? newsData.domestic : []
     readonly property var internationalList: (newsData && newsData.international) ? newsData.international : []
-    readonly property var currentList: currentTab === 0 ? domesticList : internationalList
+    readonly property var mergedList: {
+        let merged = []
+        for (let i = 0; i < domesticList.length; i++) {
+            merged.push(domesticList[i])
+        }
+        for (let i = 0; i < internationalList.length; i++) {
+            merged.push(internationalList[i])
+        }
+        return merged
+    }
+    readonly property var currentList: mergedList
 
     readonly property string miniTitle: {
         let parts = []
-        let src = domesticList
+        let src = mergedList
         for (let i = 0; i < Math.min(src.length, 5); i++)
             parts.push(src[i].title)
         if (parts.length === 0) return qsTr("今日新闻 · 暂无数据")
@@ -70,10 +79,6 @@ Widget {
         }
     }
 
-    onCurrentTabChanged: {
-        if (newsList) newsList.positionViewAtBeginning()
-    }
-
     Connections {
         id: backendConn
         function onDataChanged(d) { root.applyData(d) }
@@ -84,7 +89,7 @@ Widget {
     MarqueeTitle {
         visible: miniMode
         anchors.centerIn: parent
-        width: 380
+        width: 300
         text: root.miniTitle
     }
 
@@ -93,93 +98,6 @@ Widget {
         visible: !miniMode
         anchors.fill: parent
         spacing: 8
-
-        // 国内 / 国际 分栏切换
-        RowLayout {
-            id: tabRow
-            Layout.fillWidth: true
-            spacing: 8
-
-            Item {
-                id: domTab
-                Layout.fillWidth: true
-                Layout.preferredHeight: 30
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 8
-                    color: root.currentTab === 0 ? root.fillColor : "transparent"
-                    border.width: 1
-                    border.color: root.currentTab === 0 ? root.borderColor : "transparent"
-                }
-
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 6
-                    Text {
-                        text: qsTr("国内")
-                        font.pixelSize: 13
-                        color: root.currentTab === 0 ? root.textColor : root.subTextColor
-                    }
-                    Rectangle {
-                        visible: root.domesticList.length > 0
-                        implicitWidth: domCountText.implicitWidth + 10
-                        implicitHeight: 16
-                        radius: 8
-                        color: Qt.alpha(root.accentColor, 0.16)
-                        Text {
-                            id: domCountText
-                            anchors.centerIn: parent
-                            text: root.domesticList.length
-                            font.pixelSize: 10
-                            color: root.accentColor
-                        }
-                    }
-                }
-
-                TapHandler { onTapped: root.currentTab = 0 }
-            }
-
-            Item {
-                id: intlTab
-                Layout.fillWidth: true
-                Layout.preferredHeight: 30
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 8
-                    color: root.currentTab === 1 ? root.fillColor : "transparent"
-                    border.width: 1
-                    border.color: root.currentTab === 1 ? root.borderColor : "transparent"
-                }
-
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 6
-                    Text {
-                        text: qsTr("国际")
-                        font.pixelSize: 13
-                        color: root.currentTab === 1 ? root.textColor : root.subTextColor
-                    }
-                    Rectangle {
-                        visible: root.internationalList.length > 0
-                        implicitWidth: intlCountText.implicitWidth + 10
-                        implicitHeight: 16
-                        radius: 8
-                        color: Qt.alpha(root.accentColor, 0.16)
-                        Text {
-                            id: intlCountText
-                            anchors.centerIn: parent
-                            text: root.internationalList.length
-                            font.pixelSize: 10
-                            color: root.accentColor
-                        }
-                    }
-                }
-
-                TapHandler { onTapped: root.currentTab = 1 }
-            }
-        }
 
         // 新闻列表
         Item {
@@ -194,6 +112,20 @@ Widget {
                 model: root.currentList.slice(0, root.maxItems)
                 ScrollBar.vertical: ScrollBar {}
                 delegate: newsDelegate
+                boundsBehavior: Flickable.StopAtBounds
+                highlightMoveDuration: 200
+                highlightRangeMode: ListView.ApplyRange
+                preferredHighlightBegin: 0
+                preferredHighlightEnd: 0
+                
+                // 弹回动画效果
+                Behavior on contentY {
+                    NumberAnimation {
+                        duration: 300
+                        easing.type: Easing.OutBounce
+                        easing.amplitude: 0.5
+                    }
+                }
             }
 
             // 空状态 / 错误状态
@@ -224,7 +156,7 @@ Widget {
 
                     Button {
                         Layout.alignment: Qt.AlignHCenter
-                        visible: root.status === "error" || (root.status === "ready" && root.domesticList.length === 0 && root.internationalList.length === 0)
+                        visible: root.status === "error" || (root.status === "ready" && root.mergedList.length === 0)
                         text: qsTr("刷新")
                         onClicked: { if (backend) backend.refreshNow() }
                     }
