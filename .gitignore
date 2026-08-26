@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.idea/
+.vscode/
+libs/
+dist/
+build/
+*.egg-info/
+*.cwplugin
+*.zip

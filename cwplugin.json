@@ -1,0 +1,12 @@
+{
+  "id": "com.newsreview.news",
+  "name": "今日新闻",
+  "version": "1.0.0",
+  "api_version": ">=0.4.2",
+  "entry": "main.py",
+  "author": "NewsReview",
+  "description": "在桌面展示今日国内与国际新闻的新闻阅览插件",
+  "url": "",
+  "readme": "README.md",
+  "icon": "icon.png"
+}
