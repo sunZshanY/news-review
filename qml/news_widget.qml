@@ -15,7 +15,7 @@ Widget {
     // property var backend  （基类已有）
     // property var settings （基类已有）
 
-    property var newsData: ({ date: "", updated: "", source: "", domestic: [], international: [], sports: [] })
+    property var newsData: ({ date: "", updated: "", source: "", news: [] })
     property string status: "idle"
 
     readonly property bool isDark: Theme.isDark()
@@ -34,29 +34,12 @@ Widget {
     readonly property int maxItems: (settings && settings.max_items !== undefined) ? settings.max_items : 8
     readonly property bool showScore: settings ? (settings.show_score !== false) : true
 
-    readonly property var domesticList: (newsData && newsData.domestic) ? newsData.domestic : []
-    readonly property var internationalList: (newsData && newsData.international) ? newsData.international : []
-    readonly property var sportsList: (newsData && newsData.sports) ? newsData.sports : []
-    readonly property var mergedList: {
-        let merged = []
-        for (let i = 0; i < domesticList.length; i++) {
-            merged.push(domesticList[i])
-        }
-        for (let i = 0; i < internationalList.length; i++) {
-            merged.push(internationalList[i])
-        }
-        for (let i = 0; i < sportsList.length; i++) {
-            merged.push(sportsList[i])
-        }
-        return merged
-    }
-    readonly property var currentList: mergedList
+    readonly property var newsList: (newsData && newsData.news) ? newsData.news : []
 
     readonly property string miniTitle: {
         let parts = []
-        let src = mergedList
-        for (let i = 0; i < Math.min(src.length, 5); i++)
-            parts.push(src[i].title)
+        for (let i = 0; i < Math.min(newsList.length, 5); i++)
+            parts.push(newsList[i].title)
         if (parts.length === 0) return qsTr("今日新闻 · 暂无数据")
         return parts.join("    ")
     }
@@ -113,7 +96,7 @@ Widget {
                 anchors.fill: parent
                 clip: true
                 spacing: 2
-                model: root.currentList.slice(0, root.maxItems)
+                model: root.newsList.slice(0, root.maxItems)
                 ScrollBar.vertical: ScrollBar {}
                 delegate: newsDelegate
                 boundsBehavior: Flickable.StopAtBounds
@@ -135,7 +118,7 @@ Widget {
             // 空状态 / 错误状态
             Item {
                 anchors.fill: parent
-                visible: root.currentList.length === 0
+                visible: root.newsList.length === 0
 
                 ColumnLayout {
                     anchors.centerIn: parent
@@ -160,7 +143,7 @@ Widget {
 
                     Button {
                         Layout.alignment: Qt.AlignHCenter
-                        visible: root.status === "error" || (root.status === "ready" && root.mergedList.length === 0)
+                        visible: root.status === "error" || (root.status === "ready" && root.newsList.length === 0)
                         text: qsTr("刷新")
                         onClicked: { if (backend) backend.refreshNow() }
                     }

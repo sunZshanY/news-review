@@ -67,9 +67,7 @@ class NewsBackend(QObject):
             "date": "",
             "updated": "",
             "source": "",
-            "domestic": [],
-            "international": [],
-            "sports": [],
+            "news": [],
         }
         self._last_titles: set[str] = set()
 
@@ -111,20 +109,20 @@ class NewsBackend(QObject):
                 self._fetching = False
 
     def _fetch_primary(self) -> None:
-        domestic, international, sports = [], [], []
+        news = []
 
         # 获取国内新闻
         try:
             payload = _fetch_json(API_DOMESTIC).get("result") or {}
             raw = payload.get("data") or []
             for item in raw:
-                news = {
+                news_item = {
                     "title": str(item.get("title", "")).strip(),
                     "url": str(item.get("url", "")).strip(),
                     "media_name": str(item.get("media_name", "")).strip(),
                 }
-                if news["title"]:
-                    domestic.append(news)
+                if news_item["title"]:
+                    news.append(news_item)
         except Exception:
             pass
 
@@ -133,13 +131,13 @@ class NewsBackend(QObject):
             payload = _fetch_json(API_INTL).get("result") or {}
             raw = payload.get("data") or []
             for item in raw:
-                news = {
+                news_item = {
                     "title": str(item.get("title", "")).strip(),
                     "url": str(item.get("url", "")).strip(),
                     "media_name": str(item.get("media_name", "")).strip(),
                 }
-                if news["title"]:
-                    international.append(news)
+                if news_item["title"]:
+                    news.append(news_item)
         except Exception:
             pass
 
@@ -148,23 +146,23 @@ class NewsBackend(QObject):
             payload = _fetch_json(API_SPORT).get("result") or {}
             raw = payload.get("data") or []
             for item in raw:
-                news = {
+                news_item = {
                     "title": str(item.get("title", "")).strip(),
                     "url": str(item.get("url", "")).strip(),
                     "media_name": str(item.get("media_name", "")).strip(),
                 }
-                if news["title"]:
-                    sports.append(news)
+                if news_item["title"]:
+                    news.append(news_item)
         except Exception:
             pass
 
-        self._apply_data(domestic, international, sports, "新浪新闻")
+        self._apply_data(news, "新浪新闻")
 
 
 
-    def _apply_data(self, domestic: list, international: list, sports: list, source: str) -> None:
+    def _apply_data(self, news: list, source: str) -> None:
         now = datetime.now()
-        titles = {n["title"] for n in domestic + international + sports}
+        titles = {n["title"] for n in news}
         is_first = not self._data["updated"]
         has_new = not is_first and not titles.issubset(self._last_titles)
 
@@ -172,9 +170,7 @@ class NewsBackend(QObject):
             "date": now.strftime("%Y-%m-%d"),
             "updated": now.strftime("%H:%M:%S"),
             "source": source,
-            "domestic": domestic,
-            "international": international,
-            "sports": sports,
+            "news": news,
         }
         self._last_titles = titles
 
