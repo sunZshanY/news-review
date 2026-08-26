@@ -15,31 +15,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install tools
-        run: pip install cw-plugin-pack cw-plugin-publish
-
       - name: Get version from cwplugin.json
         id: version
         run: echo "version=$(python -c "import json; print(json.load(open('cwplugin.json'))['version'])")" >> $GITHUB_OUTPUT
 
-      - name: Pack plugin (.cwplugin)
-        run: cw-plugin-pack --format cwplugin
-
-      - name: Pack plugin (.zip)
-        run: cw-plugin-pack --format zip
-
-      - name: Publish to plugin store
-        run: cw-plugin-publish --token ${{ secrets.CW_PLUGIN_TOKEN }}
+      - name: Pack plugin
+        run: |
+          mkdir -p dist
+          zip -r "dist/com.newsreview.news-${{ steps.version.outputs.version }}.zip" \
+            cwplugin.json main.py icon.png README.md LICENSE \
+            qml/ RinUI/ class-widgets-sdk/ \
+            -x "*.git*" "*.pyc" "__pycache__/*"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            *.cwplugin
-            *.zip
+          files: dist/*.zip
           generate_release_notes: true
