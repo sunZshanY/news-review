@@ -21,12 +21,10 @@ class NotificationLevel(IntEnum):
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 
-# 新浪新闻接口（无需密钥，支持 国内/国际 分类）
-API_ALL = "https://news.topurl.cn/api?count=20"
-API_INTL = "https://news.topurl.cn/api?category=%E5%9B%BD%E9%99%85&count=20"
-API_SPORT = "https://news.topurl.cn/api?category=%E4%BD%93%E8%82%B2&count=20"
-# 备用接口：每日60秒读懂世界简报
-API_BRIEF = "https://60s.viki.moe/v2/60s"
+# 新浪新闻接口（feed.mix.sina.com.cn）
+API_DOMESTIC = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2510&k=&num=20&page=1"
+API_INTL = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2511&k=&num=20&page=1"
+API_SPORT = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2512&k=&num=20&page=1"
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -105,87 +103,64 @@ class NewsBackend(QObject):
     def _fetch_worker(self) -> None:
         try:
             self._fetch_primary()
-        except Exception:
-            self._fetch_fallback()
+        except Exception as exc:
+            self._status = "error"
+            self.statusChanged.emit("error")
         finally:
             with self._lock:
                 self._fetching = False
 
     def _fetch_primary(self) -> None:
-        payload = _fetch_json(API_ALL).get("data") or {}
-        raw = payload.get("newsList") or []
         domestic, international, sports = [], [], []
-        for item in raw:
-            news = {
-                "title": str(item.get("title", "")).strip(),
-                "url": str(item.get("url", "")).strip(),
-                "score": int(item.get("score") or 0),
-                "category": str(item.get("category", "")).strip(),
-            }
-            if not news["title"]:
-                continue
-            if news["category"] == "国际":
-                international.append(news)
-            elif news["category"] == "体育":
-                sports.append(news)
-            else:
-                domestic.append(news)
 
-        # 补充国际新闻条目（默认列表中国际新闻较少）
+        # 获取国内新闻
         try:
-            extra = _fetch_json(API_INTL).get("data") or {}
-            seen = {n["title"] for n in international}
-            for item in extra.get("newsList") or []:
-                title = str(item.get("title", "")).strip()
-                if not title or title in seen:
-                    continue
-                seen.add(title)
-                international.append({
-                    "title": title,
+            payload = _fetch_json(API_DOMESTIC).get("result") or {}
+            raw = payload.get("data") or []
+            for item in raw:
+                news = {
+                    "title": str(item.get("title", "")).strip(),
                     "url": str(item.get("url", "")).strip(),
-                    "score": int(item.get("score") or 0),
-                    "category": "国际",
-                })
+                    "media_name": str(item.get("media_name", "")).strip(),
+                }
+                if news["title"]:
+                    domestic.append(news)
         except Exception:
             pass
 
-        # 补充体育新闻条目
+        # 获取国际新闻
         try:
-            extra = _fetch_json(API_SPORT).get("data") or {}
-            seen = {n["title"] for n in sports}
-            for item in extra.get("newsList") or []:
-                title = str(item.get("title", "")).strip()
-                if not title or title in seen:
-                    continue
-                seen.add(title)
-                sports.append({
-                    "title": title,
+            payload = _fetch_json(API_INTL).get("result") or {}
+            raw = payload.get("data") or []
+            for item in raw:
+                news = {
+                    "title": str(item.get("title", "")).strip(),
                     "url": str(item.get("url", "")).strip(),
-                    "score": int(item.get("score") or 0),
-                    "category": "体育",
-                })
+                    "media_name": str(item.get("media_name", "")).strip(),
+                }
+                if news["title"]:
+                    international.append(news)
         except Exception:
             pass
 
-        domestic.sort(key=lambda n: n["score"], reverse=True)
-        international.sort(key=lambda n: n["score"], reverse=True)
-        sports.sort(key=lambda n: n["score"], reverse=True)
+        # 获取体育新闻
+        try:
+            payload = _fetch_json(API_SPORT).get("result") or {}
+            raw = payload.get("data") or []
+            for item in raw:
+                news = {
+                    "title": str(item.get("title", "")).strip(),
+                    "url": str(item.get("url", "")).strip(),
+                    "media_name": str(item.get("media_name", "")).strip(),
+                }
+                if news["title"]:
+                    sports.append(news)
+        except Exception:
+            pass
+
         self._apply_data(domestic, international, sports, "新浪新闻")
 
-    def _fetch_fallback(self) -> None:
-        """主接口不可用时使用每日简报接口"""
-        try:
-            payload = _fetch_json(API_BRIEF).get("data") or {}
-            brief = [
-                {"title": str(t).strip(), "url": "", "score": 0, "category": "简报"}
-                for t in payload.get("news") or []
-                if str(t).strip()
-            ]
-            self._apply_data(brief, [], [], "每日简报")
-        except Exception as exc:
-            self._status = "error"
-            self.statusChanged.emit("error")
-            raise exc
+
 
     def _apply_data(self, domestic: list, international: list, sports: list, source: str) -> None:
         now = datetime.now()
