@@ -52,6 +52,7 @@ news-review/
 
 ## 注意声明 / Note the statement
 > 本插件开发使用ClassWidgets SDK 0.6.0
+
 > 此插件使用deepseek-v4-pro和mimo-v2.5-pro开发
 
 ## 版权 / License
