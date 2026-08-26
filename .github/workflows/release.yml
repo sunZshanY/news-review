@@ -22,13 +22,12 @@ jobs:
       - name: Pack plugin
         run: |
           mkdir -p dist
-          zip -r "dist/com.newsreview.news-${{ steps.version.outputs.version }}.zip" \
-            cwplugin.json main.py icon.png README.md LICENSE \
-            qml/ RinUI/ class-widgets-sdk/ \
-            -x "*.git*" "*.pyc" "__pycache__/*"
+          FILES="cwplugin.json main.py icon.png README.md LICENSE qml/ RinUI/"
+          zip -r "dist/com.newsreview.news-${{ steps.version.outputs.version }}.zip" $FILES -x "*.git*" "*.pyc" "__pycache__/*"
+          cp "dist/com.newsreview.news-${{ steps.version.outputs.version }}.zip" "dist/com.newsreview.news-${{ steps.version.outputs.version }}.cwplugin"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip
+          files: dist/*
           generate_release_notes: true
