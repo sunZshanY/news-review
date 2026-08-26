@@ -24,6 +24,7 @@ from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 # 新浪新闻接口（无需密钥，支持 国内/国际 分类）
 API_ALL = "https://news.topurl.cn/api?count=20"
 API_INTL = "https://news.topurl.cn/api?category=%E5%9B%BD%E9%99%85&count=20"
+API_SPORT = "https://news.topurl.cn/api?category=%E4%BD%93%E8%82%B2&count=20"
 # 备用接口：每日60秒读懂世界简报
 API_BRIEF = "https://60s.viki.moe/v2/60s"
 
@@ -70,6 +71,7 @@ class NewsBackend(QObject):
             "source": "",
             "domestic": [],
             "international": [],
+            "sports": [],
         }
         self._last_titles: set[str] = set()
 
@@ -112,7 +114,7 @@ class NewsBackend(QObject):
     def _fetch_primary(self) -> None:
         payload = _fetch_json(API_ALL).get("data") or {}
         raw = payload.get("newsList") or []
-        domestic, international = [], []
+        domestic, international, sports = [], [], []
         for item in raw:
             news = {
                 "title": str(item.get("title", "")).strip(),
@@ -124,6 +126,8 @@ class NewsBackend(QObject):
                 continue
             if news["category"] == "国际":
                 international.append(news)
+            elif news["category"] == "体育":
+                sports.append(news)
             else:
                 domestic.append(news)
 
@@ -145,9 +149,28 @@ class NewsBackend(QObject):
         except Exception:
             pass
 
+        # 补充体育新闻条目
+        try:
+            extra = _fetch_json(API_SPORT).get("data") or {}
+            seen = {n["title"] for n in sports}
+            for item in extra.get("newsList") or []:
+                title = str(item.get("title", "")).strip()
+                if not title or title in seen:
+                    continue
+                seen.add(title)
+                sports.append({
+                    "title": title,
+                    "url": str(item.get("url", "")).strip(),
+                    "score": int(item.get("score") or 0),
+                    "category": "体育",
+                })
+        except Exception:
+            pass
+
         domestic.sort(key=lambda n: n["score"], reverse=True)
         international.sort(key=lambda n: n["score"], reverse=True)
-        self._apply_data(domestic, international, "新浪新闻")
+        sports.sort(key=lambda n: n["score"], reverse=True)
+        self._apply_data(domestic, international, sports, "新浪新闻")
 
     def _fetch_fallback(self) -> None:
         """主接口不可用时使用每日简报接口"""
@@ -158,15 +181,15 @@ class NewsBackend(QObject):
                 for t in payload.get("news") or []
                 if str(t).strip()
             ]
-            self._apply_data(brief, [], "每日简报")
+            self._apply_data(brief, [], [], "每日简报")
         except Exception as exc:
             self._status = "error"
             self.statusChanged.emit("error")
             raise exc
 
-    def _apply_data(self, domestic: list, international: list, source: str) -> None:
+    def _apply_data(self, domestic: list, international: list, sports: list, source: str) -> None:
         now = datetime.now()
-        titles = {n["title"] for n in domestic + international}
+        titles = {n["title"] for n in domestic + international + sports}
         is_first = not self._data["updated"]
         has_new = not is_first and not titles.issubset(self._last_titles)
 
@@ -176,6 +199,7 @@ class NewsBackend(QObject):
             "source": source,
             "domestic": domestic,
             "international": international,
+            "sports": sports,
         }
         self._last_titles = titles
 

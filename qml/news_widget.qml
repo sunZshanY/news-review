@@ -8,14 +8,14 @@ Widget {
     id: root
 
     text: qsTr("今日新闻")
-    implicitWidth: 300
-    height: miniMode ? 32 : 40
+    implicitWidth: 200
+    height: miniMode ? 32 : 300
 
     // 由 WidgetLoader 注入：
     // property var backend  （基类已有）
     // property var settings （基类已有）
 
-    property var newsData: ({ date: "", updated: "", source: "", domestic: [], international: [] })
+    property var newsData: ({ date: "", updated: "", source: "", domestic: [], international: [], sports: [] })
     property string status: "idle"
 
     readonly property bool isDark: Theme.isDark()
@@ -36,6 +36,7 @@ Widget {
 
     readonly property var domesticList: (newsData && newsData.domestic) ? newsData.domestic : []
     readonly property var internationalList: (newsData && newsData.international) ? newsData.international : []
+    readonly property var sportsList: (newsData && newsData.sports) ? newsData.sports : []
     readonly property var mergedList: {
         let merged = []
         for (let i = 0; i < domesticList.length; i++) {
@@ -43,6 +44,9 @@ Widget {
         }
         for (let i = 0; i < internationalList.length; i++) {
             merged.push(internationalList[i])
+        }
+        for (let i = 0; i < sportsList.length; i++) {
+            merged.push(sportsList[i])
         }
         return merged
     }
@@ -89,7 +93,7 @@ Widget {
     MarqueeTitle {
         visible: miniMode
         anchors.centerIn: parent
-        width: 300
+        width: 200
         text: root.miniTitle
     }
 
@@ -199,8 +203,8 @@ Widget {
         id: newsDelegate
         Item {
             id: itemRoot
-            width: ListView.view ? ListView.view.width : 400
-            height: 34
+            width: ListView.view ? ListView.view.width : 200
+            height: 36
 
             Rectangle {
                 anchors.fill: parent
