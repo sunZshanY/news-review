@@ -59,6 +59,4 @@ news-review/
 
 本项目基于 MIT 协议开源，详情请参阅 [LICENSE](LICENSE) 文件。
 
----
 
-<p align="center">新人开发，请多多关照喵！~</p>
