@@ -8,8 +8,8 @@ Widget {
     id: root
 
     text: qsTr("今日新闻")
-    implicitWidth: 200
-    height: miniMode ? 32 : 300
+    implicitWidth: 300
+    height: miniMode ? 32 : 480
 
     // 由 WidgetLoader 注入：
     // property var backend  （基类已有）
