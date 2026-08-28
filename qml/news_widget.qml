@@ -9,7 +9,7 @@ Widget {
 
     text: qsTr("今日新闻")
     implicitWidth: (settings && settings.widget_width !== undefined) ? settings.widget_width : 300
-    height: miniMode ? 32 : ((settings && settings.widget_height !== undefined) ? settings.widget_height : 480)
+    implicitHeight: miniMode ? 32 : ((settings && settings.widget_height !== undefined) ? settings.widget_height : 480)
     radius: 12
 
     // 由 WidgetLoader 注入：
