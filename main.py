@@ -30,7 +30,7 @@ API_BACKUP = "https://api.vvhan.com/api/60s"
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) NewsReviewPlugin/1.5"
+    "(KHTML, like Gecko) NewsReviewPlugin/1.5.1"
 )
 
 WIDGET_ID = "com.newsreview.news.widget"

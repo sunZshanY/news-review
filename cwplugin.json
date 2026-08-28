@@ -1,12 +1,12 @@
 {
   "id": "com.newsreview.news",
   "name": "今日新闻",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "api_version": ">=0.4.2",
   "entry": "main.py",
   "author": "NewsReview",
   "description": "在桌面展示今日国内、国际与体育新闻的新闻阅览插件",
-  "url": "https://github.com/Class-Widgets/plugin-template-v2/",
+  "url": "https://github.com/sunZshanY/news-review",
   "readme": "README.md",
   "icon": "icon.png"
 }
