@@ -36,12 +36,12 @@ Widget {
     readonly property bool showScore: settings ? (settings.show_score !== false) : true
     readonly property int itemHeight: (settings && settings.item_height !== undefined) ? settings.item_height : 36
 
-    readonly property var newsList: (newsData && newsData.news) ? newsData.news : []
+    readonly property var newsDataList: (newsData && newsData.news) ? newsData.news : []
 
     readonly property string miniTitle: {
         let parts = []
-        for (let i = 0; i < Math.min(newsList.length, 5); i++)
-            parts.push(newsList[i].title)
+        for (let i = 0; i < Math.min(newsDataList.length, 5); i++)
+            parts.push(newsDataList[i].title)
         if (parts.length === 0) return qsTr("今日新闻 · 暂无数据")
         return parts.join("    ")
     }
@@ -57,7 +57,6 @@ Widget {
         if (!d) return
         newsData = d
         status = "ready"
-        if (newsList) newsList.positionViewAtBeginning()
     }
 
     onBackendChanged: {
@@ -94,11 +93,11 @@ Widget {
             Layout.fillHeight: true
 
             ListView {
-                id: newsList
+                id: newsListView
                 anchors.fill: parent
                 clip: true
                 spacing: 2
-                model: root.newsList.slice(0, root.maxItems)
+                model: root.newsDataList.slice(0, root.maxItems)
                 ScrollBar.vertical: ScrollBar {}
                 delegate: newsDelegate
                 boundsBehavior: Flickable.StopAtBounds
@@ -120,7 +119,7 @@ Widget {
             // 空状态 / 错误状态
             Item {
                 anchors.fill: parent
-                visible: root.newsList.length === 0
+                visible: root.newsDataList.length === 0
 
                 ColumnLayout {
                     anchors.centerIn: parent
@@ -145,7 +144,7 @@ Widget {
 
                     Button {
                         Layout.alignment: Qt.AlignHCenter
-                        visible: root.status === "error" || (root.status === "ready" && root.newsList.length === 0)
+                        visible: root.status === "error" || (root.status === "ready" && root.newsDataList.length === 0)
                         text: qsTr("刷新")
                         onClicked: { if (backend) backend.refreshNow() }
                     }

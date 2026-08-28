@@ -26,6 +26,9 @@ API_DOMESTIC = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2510&k=
 API_INTL = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2511&k=&num=20&page=1"
 API_SPORT = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2512&k=&num=20&page=1"
 
+# 备用接口（每日简报）
+API_BACKUP = "https://api.vvhan.com/api/60s"
+
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) NewsReviewPlugin/1.0"
@@ -113,6 +116,7 @@ class NewsBackend(QObject):
 
     def _fetch_primary(self) -> None:
         news = []
+        errors = []
 
         # 获取国内新闻
         try:
@@ -126,8 +130,8 @@ class NewsBackend(QObject):
                 }
                 if news_item["title"]:
                     news.append(news_item)
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(f"国内新闻: {e}")
 
         # 获取国际新闻
         try:
@@ -141,8 +145,8 @@ class NewsBackend(QObject):
                 }
                 if news_item["title"]:
                     news.append(news_item)
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(f"国际新闻: {e}")
 
         # 获取体育新闻
         try:
@@ -156,10 +160,39 @@ class NewsBackend(QObject):
                 }
                 if news_item["title"]:
                     news.append(news_item)
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(f"体育新闻: {e}")
 
-        self._apply_data(news, "新浪新闻")
+        # 如果新浪接口全部失败，尝试备用接口
+        if not news:
+            try:
+                backup_data = _fetch_json(API_BACKUP)
+                if isinstance(backup_data, list):
+                    for i, item in enumerate(backup_data):
+                        if isinstance(item, str) and item.strip():
+                            news.append({
+                                "title": item.strip(),
+                                "url": "",
+                                "media_name": "每日简报",
+                            })
+                elif isinstance(backup_data, dict):
+                    data_list = backup_data.get("data") or backup_data.get("news") or []
+                    for item in data_list:
+                        if isinstance(item, str) and item.strip():
+                            news.append({
+                                "title": item.strip(),
+                                "url": "",
+                                "media_name": "每日简报",
+                            })
+            except Exception as e:
+                errors.append(f"备用接口: {e}")
+
+        if news:
+            self._apply_data(news, "新浪新闻" if not errors else "新浪新闻（部分）")
+        else:
+            self._status = "error"
+            self.statusChanged.emit("error")
+            print(f"[今日新闻] 获取失败: {'; '.join(errors)}")
 
 
 
