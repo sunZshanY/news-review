@@ -45,6 +45,7 @@ jobs:
           cw-plugin-pack --format zip
       
       - name: Publish to plugin registry
+        if: env.CWPT_TOKEN != ''
         env:
           CWPT_TOKEN: ${{ secrets.CWPT_TOKEN }}
         run: |
