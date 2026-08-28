@@ -8,7 +8,13 @@ Widget {
     id: root
 
     text: qsTr("今日新闻")
-    implicitWidth: (settings && settings.widget_width !== undefined) ? settings.widget_width : 320
+
+    // 固定组件宽度（不被内容撑变），高度保持与其他组件一致的标准高度
+    implicitWidth: 380
+
+    // 内容可视宽度 = 组件宽度 - 左右内边距（mini 16×2，普通 24×2）
+    property real contentWidth: root.width - (root.miniMode ? 16 : 24) * 2
+
     implicitHeight: miniMode ? 32 : ((settings && settings.widget_height !== undefined) ? settings.widget_height : 280)
     radius: 16
 
@@ -68,12 +74,60 @@ Widget {
         function onStatusChanged(st) { root.status = st }
     }
 
-    // 迷你模式
-    MarqueeTitle {
+    // 迷你模式 - 新闻滚动条
+    Item {
         visible: miniMode
-        anchors.centerIn: parent
-        width: parent.width - 16
-        text: root.miniTitle
+        anchors.fill: parent
+        anchors.margins: 8
+        clip: true
+
+        Row {
+            id: scrollingRow
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 40
+
+            // 第一条新闻文本
+            Text {
+                id: scrollingText1
+                text: root.miniTitle
+                font.pixelSize: 12
+                color: root.textColor
+                anchors.verticalCenter: parent.verticalCenter
+                width: implicitWidth
+            }
+
+            // 第二条新闻文本（用于无缝滚动）
+            Text {
+                id: scrollingText2
+                text: root.miniTitle
+                font.pixelSize: 12
+                color: root.textColor
+                anchors.verticalCenter: parent.verticalCenter
+                width: implicitWidth
+            }
+        }
+
+        // 滚动动画
+        NumberAnimation {
+            id: scrollAnimation
+            target: scrollingRow
+            property: "x"
+            from: root.width
+            to: -scrollingText1.implicitWidth - 40
+            duration: Math.max(scrollingText1.implicitWidth * 20, 15000)
+            loops: Animation.Infinite
+            running: miniMode && root.newsDataList.length > 0
+        }
+
+        // 当内容超出可视区域时启动滚动
+        onWidthChanged: {
+            if (width > 0 && scrollingText1.implicitWidth > width) {
+                scrollAnimation.start()
+            } else {
+                scrollAnimation.stop()
+                scrollingRow.x = 0
+            }
+        }
     }
 
     // 常规模式

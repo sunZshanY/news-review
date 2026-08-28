@@ -51,7 +51,7 @@ SettingsLayout {
 
         icon.name: "ic_fluent_resize_20_regular"
         title: qsTr("组件宽度")
-        description: qsTr("新闻组件的宽度（默认 320）")
+        description: qsTr("新闻组件的宽度（默认 480）")
 
         SpinBox {
             id: widthSpin
@@ -71,7 +71,7 @@ SettingsLayout {
 
         icon.name: "ic_fluent_resize_20_regular"
         title: qsTr("组件高度")
-        description: qsTr("新闻组件的高度（默认 280）")
+        description: qsTr("新闻组件的高度（默认 240）")
 
         SpinBox {
             id: heightSpin
