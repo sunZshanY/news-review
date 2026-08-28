@@ -26,8 +26,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          profile: minimal
-          override: true
       
       - name: Install git-cliff
         run: |
@@ -45,6 +43,7 @@ jobs:
           cw-plugin-pack --format zip
       
       - name: Publish to plugin registry
+        if: ${{ env.CWPT_TOKEN != '' }}
         env:
           CWPT_TOKEN: ${{ secrets.CWPT_TOKEN }}
         run: |
