@@ -50,9 +50,11 @@ jobs:
         run: |
           cw-plugin-publish
       
-      - name: Get version from tag
-        id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+      - name: Get plugin ID and version from tag
+        id: get_info
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          echo "PLUGIN_ID=$(python -c "import json; print(json.load(open('cwplugin.json'))['id'])")" >> $GITHUB_ENV
       
       - name: Generate changelog with git-cliff
         id: generate_changelog
@@ -70,7 +72,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            *.cwplugin
-            *.zip
+            ${{ env.PLUGIN_ID }}.cwplugin
+            ${{ env.PLUGIN_ID }}.zip
           body: ${{ env.CHANGELOG }}
           generate_release_notes: false
