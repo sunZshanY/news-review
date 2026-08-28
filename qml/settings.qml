@@ -10,8 +10,6 @@ PluginPage {
     horizontalPadding: 0
     wrapperWidth: width - 42 * 2
 
-    // backend 为插件本体（PluginBackendBridge 注册对象），
-    // 新闻后端通过 getBackend() 获取
     property var newsBackend: root.backend ? root.backend.getBackend() : null
     property string lastUpdated: ""
 
@@ -37,6 +35,57 @@ PluginPage {
         Layout.fillWidth: true
         spacing: 4
 
+        // 数据源设置
+        SettingCard {
+            Layout.fillWidth: true
+
+            icon.name: "ic_fluent_globe_20_regular"
+            title: qsTr("数据源")
+            description: qsTr("选择新闻数据来源")
+
+            ComboBox {
+                id: sourceCombo
+                width: 160
+                model: [qsTr("默认（新浪新闻）"), qsTr("自定义 API")]
+                currentIndex: root.newsBackend ? (root.newsBackend.getUseCustomApi() ? 1 : 0) : 0
+                onCurrentIndexChanged: {
+                    if (root.newsBackend)
+                        root.newsBackend.setUseCustomApi(currentIndex === 1)
+                }
+            }
+        }
+
+        // 自定义 API 设置
+        SettingCard {
+            Layout.fillWidth: true
+            visible: sourceCombo.currentIndex === 1
+
+            icon.name: "ic_fluent_link_20_regular"
+            title: qsTr("自定义 API 地址")
+            description: qsTr("输入自定义新闻 API 的 URL（支持 JSON 格式）")
+
+            TextField {
+                id: customApiField
+                width: 280
+                placeholderText: "https://api.example.com/news"
+                text: root.newsBackend ? root.newsBackend.getCustomApiUrl() : ""
+                onEditingFinished: {
+                    if (root.newsBackend)
+                        root.newsBackend.setCustomApiUrl(text)
+                }
+            }
+        }
+
+        // 分隔线
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            Layout.bottomMargin: 4
+            height: 1
+            color: Colors.proxy.dividerColor || "#20000000"
+        }
+
+        // 自动刷新间隔
         SettingCard {
             Layout.fillWidth: true
 
@@ -57,6 +106,7 @@ PluginPage {
             }
         }
 
+        // 新闻更新通知
         SettingCard {
             Layout.fillWidth: true
 
@@ -74,6 +124,7 @@ PluginPage {
             }
         }
 
+        // 立即刷新
         SettingCard {
             Layout.fillWidth: true
 
@@ -90,17 +141,41 @@ PluginPage {
             }
         }
 
+        // 分隔线
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            Layout.bottomMargin: 4
+            height: 1
+            color: Colors.proxy.dividerColor || "#20000000"
+        }
+
+        // 数据来源信息
         SettingCard {
             Layout.fillWidth: true
 
             icon.name: "ic_fluent_info_20_regular"
             title: qsTr("数据来源")
-            description: qsTr("新浪新闻接口（支持国内 / 国际分类），接口不可用时自动切换至“每日简报”")
+            description: qsTr("当前使用的新闻数据源")
 
-            Text {
-                text: root.lastUpdated ? qsTr("最近更新：%1").arg(root.lastUpdated) : qsTr("尚未更新")
-                typography: Typography.Caption
-                color: Colors.proxy.textSecondaryColor
+            ColumnLayout {
+                spacing: 4
+
+                Text {
+                    text: root.lastUpdated ? qsTr("最近更新：%1").arg(root.lastUpdated) : qsTr("尚未更新")
+                    typography: Typography.Caption
+                    color: Colors.proxy.textSecondaryColor
+                }
+
+                Text {
+                    text: {
+                        if (root.newsBackend && root.newsBackend.getUseCustomApi())
+                            return qsTr("使用自定义 API")
+                        return qsTr("默认：新浪新闻")
+                    }
+                    typography: Typography.Caption
+                    color: Colors.proxy.textSecondaryColor
+                }
             }
         }
     }

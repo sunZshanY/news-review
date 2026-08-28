@@ -6,11 +6,11 @@ A Class Widgets 2 plugin. 新闻阅览插件，在桌面展示今日国内与国
 import json
 import threading
 from datetime import datetime
-from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from enum import IntEnum
 from ClassWidgets.SDK import CW2Plugin, ConfigBaseModel, PluginAPI
+from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 
 
 class NotificationLevel(IntEnum):
@@ -19,19 +19,18 @@ class NotificationLevel(IntEnum):
     WARNING = 2
     SYSTEM = 3
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 
-# 新浪新闻接口（feed.mix.sina.com.cn）
-API_DOMESTIC = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2510&k=&num=20&page=1"
-API_INTL = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2511&k=&num=20&page=1"
-API_SPORT = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2512&k=&num=20&page=1"
+# 默认新闻接口
+DEFAULT_API_DOMESTIC = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2510&k=&num=20&page=1"
+DEFAULT_API_INTL = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2511&k=&num=20&page=1"
+DEFAULT_API_SPORT = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2512&k=&num=20&page=1"
 
-# 备用接口（每日简报）
+# 备用接口
 API_BACKUP = "https://api.vvhan.com/api/60s"
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) NewsReviewPlugin/1.0"
+    "(KHTML, like Gecko) NewsReviewPlugin/1.5"
 )
 
 WIDGET_ID = "com.newsreview.news.widget"
@@ -39,12 +38,13 @@ WIDGET_ID = "com.newsreview.news.widget"
 
 class NewsConfig(ConfigBaseModel):
     """插件全局配置"""
-
-    refresh_interval: int = 30  # 自动刷新间隔（分钟），最小值 10
-    notify_on_update: bool = True  # 抓取到新头条时发送桌面通知
-    widget_width: int = 300  # 组件宽度
-    widget_height: int = 480  # 组件高度
-    item_height: int = 36  # 列表项高度
+    refresh_interval: int = 30
+    notify_on_update: bool = True
+    widget_width: int = 320
+    widget_height: int = 280
+    item_height: int = 38
+    custom_api_url: str = ""
+    use_custom_api: bool = False
 
 
 def _fetch_json(url: str, timeout: int = 10) -> dict:
@@ -52,6 +52,13 @@ def _fetch_json(url: str, timeout: int = 10) -> dict:
     req = Request(url, headers={"User-Agent": USER_AGENT})
     with urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+def _fetch_text(url: str, timeout: int = 10) -> str:
+    """通过 urllib 请求文本接口"""
+    req = Request(url, headers={"User-Agent": USER_AGENT})
+    with urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8")
 
 
 class NewsBackend(QObject):
@@ -90,7 +97,7 @@ class NewsBackend(QObject):
     def start(self) -> None:
         """插件加载完成后启动：先立刻抓取，再开始定时器"""
         self._restart_timer()
-        QTimer.singleShot(800, self.refresh)
+        QTimer.singleShot(500, self.refresh)
 
     # ---------------- 数据抓取 ----------------
     @Slot()
@@ -106,95 +113,103 @@ class NewsBackend(QObject):
 
     def _fetch_worker(self) -> None:
         try:
-            self._fetch_primary()
-        except Exception as exc:
+            self._fetch_news()
+        except Exception:
             self._status = "error"
             self.statusChanged.emit("error")
         finally:
             with self._lock:
                 self._fetching = False
 
-    def _fetch_primary(self) -> None:
+    def _parse_sina_response(self, data: dict) -> list:
+        """解析新浪新闻 API 响应"""
         news = []
-        errors = []
+        payload = data.get("result") or {}
+        raw = payload.get("data") or []
+        for item in raw:
+            title = str(item.get("title", "")).strip()
+            url = str(item.get("url", "")).strip()
+            media = str(item.get("media_name", "")).strip()
+            if title:
+                news.append({"title": title, "url": url, "media_name": media})
+        return news
 
-        # 获取国内新闻
-        try:
-            payload = _fetch_json(API_DOMESTIC).get("result") or {}
-            raw = payload.get("data") or []
-            for item in raw:
-                news_item = {
-                    "title": str(item.get("title", "")).strip(),
-                    "url": str(item.get("url", "")).strip(),
-                    "media_name": str(item.get("media_name", "")).strip(),
-                }
-                if news_item["title"]:
-                    news.append(news_item)
-        except Exception as e:
-            errors.append(f"国内新闻: {e}")
+    def _fetch_news(self) -> None:
+        """获取新闻数据"""
+        news = []
+        source = "新浪新闻"
 
-        # 获取国际新闻
-        try:
-            payload = _fetch_json(API_INTL).get("result") or {}
-            raw = payload.get("data") or []
-            for item in raw:
-                news_item = {
-                    "title": str(item.get("title", "")).strip(),
-                    "url": str(item.get("url", "")).strip(),
-                    "media_name": str(item.get("media_name", "")).strip(),
-                }
-                if news_item["title"]:
-                    news.append(news_item)
-        except Exception as e:
-            errors.append(f"国际新闻: {e}")
+        # 如果启用了自定义 API
+        if self._config.use_custom_api and self._config.custom_api_url:
+            try:
+                custom_url = self._config.custom_api_url.strip()
+                if custom_url:
+                    data = _fetch_json(custom_url)
+                    # 尝试解析为新浪格式
+                    if "result" in data:
+                        news = self._parse_sina_response(data)
+                    # 尝试解析为简单列表格式
+                    elif isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, str) and item.strip():
+                                news.append({"title": item.strip(), "url": "", "media_name": "自定义源"})
+                            elif isinstance(item, dict):
+                                title = str(item.get("title", "")).strip()
+                                if title:
+                                    news.append({
+                                        "title": title,
+                                        "url": str(item.get("url", "")).strip(),
+                                        "media_name": str(item.get("source", item.get("media_name", "自定义源"))).strip()
+                                    })
+                    elif isinstance(data, dict):
+                        data_list = data.get("data") or data.get("news") or data.get("items") or []
+                        for item in data_list:
+                            if isinstance(item, str) and item.strip():
+                                news.append({"title": item.strip(), "url": "", "media_name": "自定义源"})
+                            elif isinstance(item, dict):
+                                title = str(item.get("title", "")).strip()
+                                if title:
+                                    news.append({
+                                        "title": title,
+                                        "url": str(item.get("url", "")).strip(),
+                                        "media_name": str(item.get("source", item.get("media_name", "自定义源"))).strip()
+                                    })
+                    source = "自定义源"
+            except Exception:
+                pass
 
-        # 获取体育新闻
-        try:
-            payload = _fetch_json(API_SPORT).get("result") or {}
-            raw = payload.get("data") or []
-            for item in raw:
-                news_item = {
-                    "title": str(item.get("title", "")).strip(),
-                    "url": str(item.get("url", "")).strip(),
-                    "media_name": str(item.get("media_name", "")).strip(),
-                }
-                if news_item["title"]:
-                    news.append(news_item)
-        except Exception as e:
-            errors.append(f"体育新闻: {e}")
+        # 使用默认接口
+        if not news:
+            for api_url in [DEFAULT_API_DOMESTIC, DEFAULT_API_INTL, DEFAULT_API_SPORT]:
+                try:
+                    data = _fetch_json(api_url)
+                    news.extend(self._parse_sina_response(data))
+                except Exception:
+                    pass
+            source = "新浪新闻"
 
-        # 如果新浪接口全部失败，尝试备用接口
+        # 备用接口
         if not news:
             try:
                 backup_data = _fetch_json(API_BACKUP)
                 if isinstance(backup_data, list):
-                    for i, item in enumerate(backup_data):
+                    for item in backup_data:
                         if isinstance(item, str) and item.strip():
-                            news.append({
-                                "title": item.strip(),
-                                "url": "",
-                                "media_name": "每日简报",
-                            })
+                            news.append({"title": item.strip(), "url": "", "media_name": "每日简报"})
                 elif isinstance(backup_data, dict):
                     data_list = backup_data.get("data") or backup_data.get("news") or []
                     for item in data_list:
                         if isinstance(item, str) and item.strip():
-                            news.append({
-                                "title": item.strip(),
-                                "url": "",
-                                "media_name": "每日简报",
-                            })
-            except Exception as e:
-                errors.append(f"备用接口: {e}")
+                            news.append({"title": item.strip(), "url": "", "media_name": "每日简报"})
+                source = "每日简报"
+            except Exception:
+                pass
 
         if news:
-            self._apply_data(news, "新浪新闻" if not errors else "新浪新闻（部分）")
+            self._apply_data(news, source)
         else:
             self._status = "error"
             self.statusChanged.emit("error")
-            print(f"[今日新闻] 获取失败: {'; '.join(errors)}")
-
-
 
     def _apply_data(self, news: list, source: str) -> None:
         now = datetime.now()
@@ -281,7 +296,7 @@ class NewsBackend(QObject):
 
     @Slot(int)
     def setWidgetHeight(self, height: int) -> None:
-        self._config.widget_height = max(int(height), 200)
+        self._config.widget_height = max(int(height), 150)
 
     @Slot(result=int)
     def getWidgetHeight(self) -> int:
@@ -294,6 +309,22 @@ class NewsBackend(QObject):
     @Slot(result=int)
     def getItemHeight(self) -> int:
         return int(self._config.item_height)
+
+    @Slot(str)
+    def setCustomApiUrl(self, url: str) -> None:
+        self._config.custom_api_url = str(url).strip()
+
+    @Slot(result=str)
+    def getCustomApiUrl(self) -> str:
+        return str(self._config.custom_api_url)
+
+    @Slot(bool)
+    def setUseCustomApi(self, enabled: bool) -> None:
+        self._config.use_custom_api = bool(enabled)
+
+    @Slot(result=bool)
+    def getUseCustomApi(self) -> bool:
+        return bool(self._config.use_custom_api)
 
 
 class Plugin(CW2Plugin):

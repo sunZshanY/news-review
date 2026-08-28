@@ -8,13 +8,9 @@ Widget {
     id: root
 
     text: qsTr("今日新闻")
-    implicitWidth: (settings && settings.widget_width !== undefined) ? settings.widget_width : 300
-    implicitHeight: miniMode ? 32 : ((settings && settings.widget_height !== undefined) ? settings.widget_height : 480)
-    radius: 12
-
-    // 由 WidgetLoader 注入：
-    // property var backend  （基类已有）
-    // property var settings （基类已有）
+    implicitWidth: (settings && settings.widget_width !== undefined) ? settings.widget_width : 320
+    implicitHeight: miniMode ? 32 : ((settings && settings.widget_height !== undefined) ? settings.widget_height : 280)
+    radius: 16
 
     property var newsData: ({ date: "", updated: "", source: "", news: [] })
     property string status: "idle"
@@ -29,12 +25,11 @@ Widget {
     readonly property color fillColor: Colors.proxy.controlFillColor !== undefined
         ? Colors.proxy.controlFillColor : (isDark ? "#24FFFFFF" : "#12000000")
     readonly property color hoverColor: isDark ? "#2EFFFFFF" : "#1A000000"
-    readonly property color borderColor: Colors.proxy.controlBorderColor !== undefined
-        ? Colors.proxy.controlBorderColor : (isDark ? "#40FFFFFF" : "#26000000")
+    readonly property color cardBgColor: isDark ? "#1AFFFFFF" : "#08000000"
 
     readonly property int maxItems: (settings && settings.max_items !== undefined) ? settings.max_items : 8
     readonly property bool showScore: settings ? (settings.show_score !== false) : true
-    readonly property int itemHeight: (settings && settings.item_height !== undefined) ? settings.item_height : 36
+    readonly property int itemHeight: (settings && settings.item_height !== undefined) ? settings.item_height : 38
 
     readonly property var newsDataList: (newsData && newsData.news) ? newsData.news : []
 
@@ -43,13 +38,13 @@ Widget {
         for (let i = 0; i < Math.min(newsDataList.length, 5); i++)
             parts.push(newsDataList[i].title)
         if (parts.length === 0) return qsTr("今日新闻 · 暂无数据")
-        return parts.join("    ")
+        return parts.join("    |    ")
     }
 
     readonly property string statusText: {
         if (!newsData || newsData.updated === "") return qsTr("尚未获取新闻")
         if (status === "loading") return qsTr("更新中…")
-        if (status === "error") return qsTr("更新失败，请点击右侧按钮重试")
+        if (status === "error") return qsTr("更新失败")
         return (newsData.source ? newsData.source + " · " : "") + qsTr("更新于 ") + newsData.updated
     }
 
@@ -73,11 +68,11 @@ Widget {
         function onStatusChanged(st) { root.status = st }
     }
 
-    // 迷你模式：滚动显示今日头条
+    // 迷你模式
     MarqueeTitle {
         visible: miniMode
         anchors.centerIn: parent
-        width: 200
+        width: parent.width - 16
         text: root.miniTitle
     }
 
@@ -85,7 +80,47 @@ Widget {
     ColumnLayout {
         visible: !miniMode
         anchors.fill: parent
+        anchors.margins: 12
         spacing: 8
+
+        // 标题栏
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Text {
+                text: qsTr("今日新闻")
+                font.pixelSize: 15
+                font.bold: true
+                color: root.textColor
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Rectangle {
+                visible: root.status === "loading"
+                width: 16
+                height: 16
+                radius: 8
+                color: "transparent"
+                border.width: 2
+                border.color: root.accentColor
+
+                RotationAnimation on rotation {
+                    from: 0
+                    to: 360
+                    duration: 1000
+                    loops: Animation.Infinite
+                    running: root.status === "loading"
+                }
+            }
+
+            Text {
+                text: root.statusText
+                font.pixelSize: 11
+                color: root.subTextColor
+            }
+        }
 
         // 新闻列表
         Item {
@@ -96,46 +131,46 @@ Widget {
                 id: newsListView
                 anchors.fill: parent
                 clip: true
-                spacing: 2
+                spacing: 4
                 model: root.newsDataList.slice(0, root.maxItems)
-                ScrollBar.vertical: ScrollBar {}
                 delegate: newsDelegate
                 boundsBehavior: Flickable.StopAtBounds
-                highlightMoveDuration: 200
-                highlightRangeMode: ListView.ApplyRange
-                preferredHighlightBegin: 0
-                preferredHighlightEnd: 0
-                
-                // 弹回动画效果
-                Behavior on contentY {
-                    NumberAnimation {
-                        duration: 300
-                        easing.type: Easing.OutBounce
-                        easing.amplitude: 0.5
-                    }
+
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
                 }
             }
 
-            // 空状态 / 错误状态
+            // 空状态
             Item {
                 anchors.fill: parent
                 visible: root.newsDataList.length === 0
 
                 ColumnLayout {
                     anchors.centerIn: parent
-                    spacing: 8
+                    spacing: 12
 
-                    BusyIndicator {
+                    Icon {
                         Layout.alignment: Qt.AlignHCenter
-                        running: root.status === "loading"
-                        visible: root.status === "loading"
+                        name: root.status === "loading" ? "ic_fluent_arrow_sync_20_regular" : "ic_fluent_news_20_regular"
+                        size: 32
+                        color: root.subTextColor
+                        opacity: 0.5
+
+                        RotationAnimation on rotation {
+                            from: 0
+                            to: 360
+                            duration: 1000
+                            loops: Animation.Infinite
+                            running: root.status === "loading"
+                        }
                     }
 
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: {
                             if (root.status === "loading") return qsTr("正在加载新闻…")
-                            if (root.status === "error") return qsTr("加载失败，请检查网络连接")
+                            if (root.status === "error") return qsTr("加载失败，请检查网络")
                             return qsTr("暂无新闻")
                         }
                         font.pixelSize: 13
@@ -146,38 +181,34 @@ Widget {
                         Layout.alignment: Qt.AlignHCenter
                         visible: root.status === "error" || (root.status === "ready" && root.newsDataList.length === 0)
                         text: qsTr("刷新")
+                        icon.name: "ic_fluent_arrow_sync_20_regular"
                         onClicked: { if (backend) backend.refreshNow() }
                     }
                 }
             }
         }
 
-        // 底部状态栏
+        // 底部工具栏
         RowLayout {
             Layout.fillWidth: true
             spacing: 4
 
             Text {
                 Layout.fillWidth: true
-                text: root.statusText
-                font.pixelSize: 11
+                text: root.newsData.date ? qsTr("%1 · %2 条新闻").arg(root.newsData.date).arg(root.newsDataList.length) : ""
+                font.pixelSize: 10
                 color: root.subTextColor
                 elide: Text.ElideRight
             }
 
             ToolButton {
                 flat: true
-                Layout.preferredWidth: 24
-                Layout.preferredHeight: 24
+                Layout.preferredWidth: 20
+                Layout.preferredHeight: 20
                 icon.name: "ic_fluent_arrow_sync_20_regular"
-                opacity: root.status === "loading" ? 0.55 : 0.85
-                RotationAnimation on rotation {
-                    from: 0
-                    to: 360
-                    duration: 900
-                    loops: Animation.Infinite
-                    running: root.status === "loading"
-                }
+                icon.width: 14
+                icon.height: 14
+                opacity: hovered ? 1.0 : 0.7
                 onClicked: { if (backend) backend.refreshNow() }
             }
         }
@@ -192,37 +223,53 @@ Widget {
 
             Rectangle {
                 anchors.fill: parent
-                radius: 6
-                color: itemHover.hovered ? root.hoverColor : "transparent"
+                anchors.leftMargin: 2
+                anchors.rightMargin: 2
+                radius: 8
+                color: itemHover.hovered ? root.hoverColor : root.cardBgColor
+
+                Behavior on color {
+                    ColorAnimation { duration: 150 }
+                }
             }
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
                 spacing: 8
 
-                Text {
-                    Layout.preferredWidth: 20
-                    text: index + 1
-                    font.pixelSize: 12
-                    font.bold: true
-                    color: index < 3 ? root.accentColor : root.subTextColor
-                    horizontalAlignment: Text.AlignHCenter
+                // 序号
+                Rectangle {
+                    Layout.preferredWidth: 22
+                    Layout.preferredHeight: 22
+                    radius: 6
+                    color: index < 3 ? root.accentColor : root.fillColor
+                    opacity: index < 3 ? 1.0 : 0.8
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: index + 1
+                        font.pixelSize: 11
+                        font.bold: index < 3
+                        color: index < 3 ? "#FFFFFF" : root.subTextColor
+                    }
                 }
 
+                // 标题
                 Text {
                     Layout.fillWidth: true
-                    text: modelData.title
-                    font.pixelSize: 14
+                    text: modelData.title || ""
+                    font.pixelSize: 13
                     color: root.textColor
                     elide: Text.ElideRight
                     maximumLineCount: 1
                 }
 
+                // 热度标记
                 Rectangle {
                     visible: root.showScore && modelData.score >= 80
-                    implicitWidth: hotText.implicitWidth + 10
+                    implicitWidth: hotText.implicitWidth + 8
                     implicitHeight: 16
                     radius: 4
                     color: root.isDark ? "#33FF7E79" : "#33E81123"
@@ -230,14 +277,14 @@ Widget {
                         id: hotText
                         anchors.centerIn: parent
                         text: qsTr("热")
-                        font.pixelSize: 10
+                        font.pixelSize: 9
                         color: root.isDark ? "#FF7E79" : "#E81123"
                     }
                 }
 
                 Rectangle {
                     visible: root.showScore && modelData.score >= 60 && modelData.score < 80
-                    implicitWidth: recommendText.implicitWidth + 10
+                    implicitWidth: recommendText.implicitWidth + 8
                     implicitHeight: 16
                     radius: 4
                     color: root.isDark ? "#33FFB900" : "#33FF8C00"
@@ -245,14 +292,15 @@ Widget {
                         id: recommendText
                         anchors.centerIn: parent
                         text: qsTr("荐")
-                        font.pixelSize: 10
+                        font.pixelSize: 9
                         color: root.isDark ? "#FFB900" : "#FF8C00"
                     }
                 }
 
+                // 链接图标
                 Icon {
                     name: "ic_fluent_open_20_regular"
-                    size: 13
+                    size: 12
                     color: root.subTextColor
                     visible: itemHover.hovered && modelData.url !== ""
                 }

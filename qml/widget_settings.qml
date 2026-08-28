@@ -17,7 +17,7 @@ SettingsLayout {
         SpinBox {
             id: maxItemsSpin
             from: 3
-            to: 15
+            to: 20
             value: settings.max_items
             onValueChanged: settings.max_items = Math.round(value)
         }
@@ -37,19 +37,28 @@ SettingsLayout {
         }
     }
 
+    // 分隔线
+    Rectangle {
+        Layout.fillWidth: true
+        Layout.topMargin: 4
+        Layout.bottomMargin: 4
+        height: 1
+        color: Colors.proxy.dividerColor || "#20000000"
+    }
+
     SettingCard {
         Layout.fillWidth: true
 
         icon.name: "ic_fluent_resize_20_regular"
         title: qsTr("组件宽度")
-        description: qsTr("新闻组件的宽度（默认 300）")
+        description: qsTr("新闻组件的宽度（默认 320）")
 
         SpinBox {
             id: widthSpin
             from: 200
-            to: 600
+            to: 500
             stepSize: 10
-            value: backend ? backend.getWidgetWidth() : 300
+            value: backend ? backend.getWidgetWidth() : 320
             onValueChanged: {
                 if (backend && widthSpin.enabled)
                     backend.setWidgetWidth(Math.round(value))
@@ -62,14 +71,14 @@ SettingsLayout {
 
         icon.name: "ic_fluent_resize_20_regular"
         title: qsTr("组件高度")
-        description: qsTr("新闻组件的高度（默认 480）")
+        description: qsTr("新闻组件的高度（默认 280）")
 
         SpinBox {
             id: heightSpin
-            from: 200
-            to: 800
+            from: 150
+            to: 500
             stepSize: 10
-            value: backend ? backend.getWidgetHeight() : 480
+            value: backend ? backend.getWidgetHeight() : 280
             onValueChanged: {
                 if (backend && heightSpin.enabled)
                     backend.setWidgetHeight(Math.round(value))
@@ -82,14 +91,14 @@ SettingsLayout {
 
         icon.name: "ic_fluent_text_paragraph_20_regular"
         title: qsTr("列表项高度")
-        description: qsTr("每条新闻的高度（默认 36）")
+        description: qsTr("每条新闻的高度（默认 38）")
 
         SpinBox {
             id: itemHeightSpin
-            from: 24
+            from: 28
             to: 60
             stepSize: 2
-            value: backend ? backend.getItemHeight() : 36
+            value: backend ? backend.getItemHeight() : 38
             onValueChanged: {
                 if (backend && itemHeightSpin.enabled)
                     backend.setItemHeight(Math.round(value))
