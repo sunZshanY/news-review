@@ -28,12 +28,72 @@ SettingsLayout {
 
         icon.name: "ic_fluent_alert_20_regular"
         title: qsTr("热度标记")
-        description: qsTr("为高热度新闻显示“热”标记")
+        description: qsTr("为高热度新闻显示"热"标记")
 
         Switch {
             id: scoreSwitch
             checked: settings.show_score
             onCheckedChanged: settings.show_score = checked
+        }
+    }
+
+    SettingCard {
+        Layout.fillWidth: true
+
+        icon.name: "ic_fluent_resize_20_regular"
+        title: qsTr("组件宽度")
+        description: qsTr("新闻组件的宽度（默认 300）")
+
+        SpinBox {
+            id: widthSpin
+            from: 200
+            to: 600
+            stepSize: 10
+            value: backend ? backend.getWidgetWidth() : 300
+            onValueChanged: {
+                if (backend && widthSpin.enabled)
+                    backend.setWidgetWidth(Math.round(value))
+            }
+        }
+    }
+
+    SettingCard {
+        Layout.fillWidth: true
+
+        icon.name: "ic_fluent_resize_20_regular"
+        title: qsTr("组件高度")
+        description: qsTr("新闻组件的高度（默认 480）")
+
+        SpinBox {
+            id: heightSpin
+            from: 200
+            to: 800
+            stepSize: 10
+            value: backend ? backend.getWidgetHeight() : 480
+            onValueChanged: {
+                if (backend && heightSpin.enabled)
+                    backend.setWidgetHeight(Math.round(value))
+            }
+        }
+    }
+
+    SettingCard {
+        Layout.fillWidth: true
+
+        icon.name: "ic_fluent_text_paragraph_20_regular"
+        title: qsTr("列表项高度")
+        description: qsTr("每条新闻的高度（默认 36）")
+
+        SpinBox {
+            id: itemHeightSpin
+            from: 24
+            to: 60
+            stepSize: 2
+            value: backend ? backend.getItemHeight() : 36
+            onValueChanged: {
+                if (backend && itemHeightSpin.enabled)
+                    backend.setItemHeight(Math.round(value))
+            }
         }
     }
 }

@@ -8,8 +8,8 @@ Widget {
     id: root
 
     text: qsTr("今日新闻")
-    implicitWidth: 300
-    height: miniMode ? 32 : 480
+    implicitWidth: (settings && settings.widget_width !== undefined) ? settings.widget_width : 300
+    height: miniMode ? 32 : ((settings && settings.widget_height !== undefined) ? settings.widget_height : 480)
     radius: 12
 
     // 由 WidgetLoader 注入：
@@ -34,6 +34,7 @@ Widget {
 
     readonly property int maxItems: (settings && settings.max_items !== undefined) ? settings.max_items : 8
     readonly property bool showScore: settings ? (settings.show_score !== false) : true
+    readonly property int itemHeight: (settings && settings.item_height !== undefined) ? settings.item_height : 36
 
     readonly property var newsList: (newsData && newsData.news) ? newsData.news : []
 
@@ -188,7 +189,7 @@ Widget {
         Item {
             id: itemRoot
             width: ListView.view ? ListView.view.width : 200
-            height: 36
+            height: root.itemHeight
 
             Rectangle {
                 anchors.fill: parent

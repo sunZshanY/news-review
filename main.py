@@ -39,6 +39,9 @@ class NewsConfig(ConfigBaseModel):
 
     refresh_interval: int = 30  # 自动刷新间隔（分钟），最小值 10
     notify_on_update: bool = True  # 抓取到新头条时发送桌面通知
+    widget_width: int = 300  # 组件宽度
+    widget_height: int = 480  # 组件高度
+    item_height: int = 36  # 列表项高度
 
 
 def _fetch_json(url: str, timeout: int = 10) -> dict:
@@ -234,6 +237,30 @@ class NewsBackend(QObject):
     @Slot(result=bool)
     def getNotifyOnUpdate(self) -> bool:
         return bool(self._config.notify_on_update)
+
+    @Slot(int)
+    def setWidgetWidth(self, width: int) -> None:
+        self._config.widget_width = max(int(width), 200)
+
+    @Slot(result=int)
+    def getWidgetWidth(self) -> int:
+        return int(self._config.widget_width)
+
+    @Slot(int)
+    def setWidgetHeight(self, height: int) -> None:
+        self._config.widget_height = max(int(height), 200)
+
+    @Slot(result=int)
+    def getWidgetHeight(self) -> int:
+        return int(self._config.widget_height)
+
+    @Slot(int)
+    def setItemHeight(self, height: int) -> None:
+        self._config.item_height = max(int(height), 24)
+
+    @Slot(result=int)
+    def getItemHeight(self) -> int:
+        return int(self._config.item_height)
 
 
 class Plugin(CW2Plugin):
