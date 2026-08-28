@@ -6,7 +6,7 @@
   "entry": "main.py",
   "author": "NewsReview",
   "description": "在桌面展示今日国内、国际与体育新闻的新闻阅览插件",
-  "url": "",
+  "url": "https://github.com/Class-Widgets/plugin-template-v2/",
   "readme": "README.md",
   "icon": "icon.png"
 }
