@@ -10,3 +10,6 @@ build/
 *.egg-info/
 *.cwplugin
 *.zip
+class-widgets-sdk/
+RinUI/
+.claude/
