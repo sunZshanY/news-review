@@ -9,10 +9,8 @@ Widget {
 
     text: qsTr("今日新闻")
 
-    // 固定组件宽度（不被内容撑变），高度保持与其他组件一致的标准高度
     implicitWidth: 380
 
-    // 内容可视宽度 = 组件宽度 - 左右内边距（mini 16×2，普通 24×2）
     property real contentWidth: root.width - (root.miniMode ? 16 : 24) * 2
 
     implicitHeight: miniMode ? 32 : ((settings && settings.widget_height !== undefined) ? settings.widget_height : 280)
@@ -37,7 +35,7 @@ Widget {
     readonly property bool showScore: settings ? (settings.show_score !== false) : true
     readonly property int itemHeight: (settings && settings.item_height !== undefined) ? settings.item_height : 38
 
-    readonly property var newsDataList: (newsData && newsData.news) ? newsData.news : []
+    readonly property var newsDataList: newsData && Array.isArray(newsData.news) ? newsData.news : []
 
     readonly property string miniTitle: {
         let parts = []
@@ -47,31 +45,79 @@ Widget {
         return parts.join("    |    ")
     }
 
-    readonly property string statusText: {
-        if (!newsData || newsData.updated === "") return qsTr("尚未获取新闻")
-        if (status === "loading") return qsTr("更新中…")
-        if (status === "error") return qsTr("更新失败")
-        return (newsData.source ? newsData.source + " · " : "") + qsTr("更新于 ") + newsData.updated
-    }
-
-    function applyData(d) {
-        if (!d) return
-        newsData = d
-        status = "ready"
-    }
-
-    onBackendChanged: {
-        if (backend) {
-            backendConn.target = backend
-            if (backend.getData) applyData(backend.getData())
-            if (backend.getStatus) status = backend.getStatus()
+    function refreshNews() {
+        if (backend && backend.refreshNow) {
+            status = "loading"
+            backend.refreshNow()
+        } else {
+            status = "error"
         }
     }
 
-    Connections {
-        id: backendConn
-        function onDataChanged(d) { root.applyData(d) }
-        function onStatusChanged(st) { root.status = st }
+    // 定时刷新
+    Timer {
+        id: refreshTimer
+        interval: 30 * 60 * 1000
+        repeat: true
+        running: true
+        onTriggered: root.refreshNews()
+    }
+
+    property bool _backendConnected: false
+
+    function syncBackendData() {
+        if (!backend) return
+        if (backend.getData) {
+            let data = backend.getData()
+            if (data) root.newsData = data
+        }
+        if (backend.getStatus) root.status = backend.getStatus()
+    }
+
+    function connectBackend() {
+        if (!backend || _backendConnected) return
+        try {
+            backend.dataChanged.connect(root._onDataChanged)
+            backend.statusChanged.connect(root._onStatusChanged)
+            _backendConnected = true
+        } catch (e) {}
+        syncBackendData()
+    }
+
+    function _onDataChanged(d) {
+        if (d) {
+            root.newsData = d
+            root.status = root.newsDataList.length > 0 ? "ready" : "error"
+            if (root.newsDataList.length > 0)
+                Qt.callLater(tickerArea.restartScroll)
+        }
+    }
+
+    function _onStatusChanged(st) {
+        if (root.status !== "ready" || st === "ready") root.status = st
+    }
+
+    Component.onCompleted: {
+        connectBackend()
+        syncRetryTimer.start()
+    }
+
+    onBackendChanged: {
+        connectBackend()
+    }
+
+    Timer {
+        id: syncRetryTimer
+        interval: 1500
+        repeat: true
+        running: false
+        onTriggered: {
+            connectBackend()
+            syncBackendData()
+            if (root.newsDataList.length > 0 || root.status === "error") {
+                syncRetryTimer.stop()
+            }
+        }
     }
 
     // 迷你模式 - 新闻滚动条
@@ -86,7 +132,6 @@ Widget {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 40
 
-            // 第一条新闻文本
             Text {
                 id: scrollingText1
                 text: root.miniTitle
@@ -96,7 +141,6 @@ Widget {
                 width: implicitWidth
             }
 
-            // 第二条新闻文本（用于无缝滚动）
             Text {
                 id: scrollingText2
                 text: root.miniTitle
@@ -107,7 +151,6 @@ Widget {
             }
         }
 
-        // 滚动动画
         NumberAnimation {
             id: scrollAnimation
             target: scrollingRow
@@ -119,7 +162,6 @@ Widget {
             running: miniMode && root.newsDataList.length > 0
         }
 
-        // 当内容超出可视区域时启动滚动
         onWidthChanged: {
             if (width > 0 && scrollingText1.implicitWidth > width) {
                 scrollAnimation.start()
@@ -130,69 +172,128 @@ Widget {
         }
     }
 
-    // 常规模式
+    // 常规模式 - 新闻滚动
     ColumnLayout {
         visible: !miniMode
         anchors.fill: parent
         anchors.margins: 12
-        spacing: 8
+        spacing: 0
 
-        // 标题栏
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Text {
-                text: qsTr("今日新闻")
-                font.pixelSize: 15
-                font.bold: true
-                color: root.textColor
-            }
-
-            Item { Layout.fillWidth: true }
-
-            Rectangle {
-                visible: root.status === "loading"
-                width: 16
-                height: 16
-                radius: 8
-                color: "transparent"
-                border.width: 2
-                border.color: root.accentColor
-
-                RotationAnimation on rotation {
-                    from: 0
-                    to: 360
-                    duration: 1000
-                    loops: Animation.Infinite
-                    running: root.status === "loading"
-                }
-            }
-
-            Text {
-                text: root.statusText
-                font.pixelSize: 11
-                color: root.subTextColor
-            }
-        }
-
-        // 新闻列表
+        // 新闻滚动区域
         Item {
+            id: tickerArea
             Layout.fillWidth: true
             Layout.fillHeight: true
+            clip: true
 
             ListView {
-                id: newsListView
+                id: newsList
                 anchors.fill: parent
                 clip: true
                 spacing: 4
                 model: root.newsDataList.slice(0, root.maxItems)
-                delegate: newsDelegate
                 boundsBehavior: Flickable.StopAtBounds
+                interactive: false
+                highlightFollowsCurrentItem: false
 
-                ScrollBar.vertical: ScrollBar {
-                    policy: ScrollBar.AsNeeded
+                delegate: Item {
+                    width: newsList.width
+                    height: root.itemHeight
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.leftMargin: 2
+                        anchors.rightMargin: 2
+                        radius: 8
+                        color: itemHover.hovered ? root.hoverColor : root.cardBgColor
+
+                        Behavior on color {
+                            ColorAnimation { duration: 150 }
+                        }
+                    }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+                        spacing: 8
+
+                        Rectangle {
+                            Layout.preferredWidth: 22
+                            Layout.preferredHeight: 22
+                            radius: 6
+                            color: index < 3 ? root.accentColor : root.fillColor
+                            opacity: index < 3 ? 1.0 : 0.8
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: index + 1
+                                font.pixelSize: 11
+                                font.bold: index < 3
+                                color: index < 3 ? "#FFFFFF" : root.subTextColor
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: modelData.title || ""
+                                font.pixelSize: 13
+                                color: root.textColor
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                visible: modelData.media_name && modelData.media_name !== ""
+                                text: modelData.media_name || ""
+                                font.pixelSize: 10
+                                color: root.subTextColor
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
+                            }
+                        }
+
+
+
+                        Icon {
+                            name: "ic_fluent_open_20_regular"
+                            size: 12
+                            color: root.subTextColor
+                            visible: itemHover.hovered && modelData.url !== ""
+                        }
+                    }
+
+                    HoverHandler { id: itemHover }
+
+                    TapHandler {
+                        onTapped: {
+                            if (modelData.url) Qt.openUrlExternally(modelData.url)
+                        }
+                    }
                 }
+            }
+
+            // 自动滚动动画
+            NumberAnimation {
+                id: scrollAnim
+                target: newsList
+                property: "contentY"
+                from: 0
+                to: Math.max(0, newsList.contentHeight - newsList.height)
+                duration: Math.max(1, newsList.count - Math.floor(newsList.height / root.itemHeight)) * 3000
+                easing.type: Easing.InOutQuad
+                running: newsList.count > 0 && root.status === "ready"
+                        && newsList.contentHeight > newsList.height
+            }
+
+            function restartScroll() {
+                newsList.contentY = 0
+                scrollAnim.restart()
             }
 
             // 空状态
@@ -236,7 +337,7 @@ Widget {
                         visible: root.status === "error" || (root.status === "ready" && root.newsDataList.length === 0)
                         text: qsTr("刷新")
                         icon.name: "ic_fluent_arrow_sync_20_regular"
-                        onClicked: { if (backend) backend.refreshNow() }
+                        onClicked: { root.refreshNews() }
                     }
                 }
             }
@@ -245,6 +346,7 @@ Widget {
         // 底部工具栏
         RowLayout {
             Layout.fillWidth: true
+            Layout.topMargin: 4
             spacing: 4
 
             Text {
@@ -263,109 +365,7 @@ Widget {
                 icon.width: 14
                 icon.height: 14
                 opacity: hovered ? 1.0 : 0.7
-                onClicked: { if (backend) backend.refreshNow() }
-            }
-        }
-    }
-
-    Component {
-        id: newsDelegate
-        Item {
-            id: itemRoot
-            width: ListView.view ? ListView.view.width : 200
-            height: root.itemHeight
-
-            Rectangle {
-                anchors.fill: parent
-                anchors.leftMargin: 2
-                anchors.rightMargin: 2
-                radius: 8
-                color: itemHover.hovered ? root.hoverColor : root.cardBgColor
-
-                Behavior on color {
-                    ColorAnimation { duration: 150 }
-                }
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
-                spacing: 8
-
-                // 序号
-                Rectangle {
-                    Layout.preferredWidth: 22
-                    Layout.preferredHeight: 22
-                    radius: 6
-                    color: index < 3 ? root.accentColor : root.fillColor
-                    opacity: index < 3 ? 1.0 : 0.8
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: index + 1
-                        font.pixelSize: 11
-                        font.bold: index < 3
-                        color: index < 3 ? "#FFFFFF" : root.subTextColor
-                    }
-                }
-
-                // 标题
-                Text {
-                    Layout.fillWidth: true
-                    text: modelData.title || ""
-                    font.pixelSize: 13
-                    color: root.textColor
-                    elide: Text.ElideRight
-                    maximumLineCount: 1
-                }
-
-                // 热度标记
-                Rectangle {
-                    visible: root.showScore && modelData.score >= 80
-                    implicitWidth: hotText.implicitWidth + 8
-                    implicitHeight: 16
-                    radius: 4
-                    color: root.isDark ? "#33FF7E79" : "#33E81123"
-                    Text {
-                        id: hotText
-                        anchors.centerIn: parent
-                        text: qsTr("热")
-                        font.pixelSize: 9
-                        color: root.isDark ? "#FF7E79" : "#E81123"
-                    }
-                }
-
-                Rectangle {
-                    visible: root.showScore && modelData.score >= 60 && modelData.score < 80
-                    implicitWidth: recommendText.implicitWidth + 8
-                    implicitHeight: 16
-                    radius: 4
-                    color: root.isDark ? "#33FFB900" : "#33FF8C00"
-                    Text {
-                        id: recommendText
-                        anchors.centerIn: parent
-                        text: qsTr("荐")
-                        font.pixelSize: 9
-                        color: root.isDark ? "#FFB900" : "#FF8C00"
-                    }
-                }
-
-                // 链接图标
-                Icon {
-                    name: "ic_fluent_open_20_regular"
-                    size: 12
-                    color: root.subTextColor
-                    visible: itemHover.hovered && modelData.url !== ""
-                }
-            }
-
-            HoverHandler { id: itemHover }
-
-            TapHandler {
-                onTapped: {
-                    if (modelData.url) Qt.openUrlExternally(modelData.url)
-                }
+                onClicked: { root.refreshNews() }
             }
         }
     }
