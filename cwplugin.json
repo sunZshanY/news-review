@@ -1,7 +1,7 @@
 {
   "id": "com.newsreview.news",
   "name": "今日新闻",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "api_version": ">=0.4.2",
   "entry": "main.py",
   "author": "NewsReview",

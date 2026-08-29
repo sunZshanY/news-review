@@ -31,7 +31,7 @@ API_PENGPAI = "https://cache.thepaper.cn/contentapi/wwwIndex/rightSidebar"
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) NewsReviewPlugin/1.5.0"
+    "(KHTML, like Gecko) NewsReviewPlugin/1.6.1"
 )
 
 WIDGET_ID = "com.newsreview.news.widget"
@@ -46,6 +46,7 @@ class NewsConfig(ConfigBaseModel):
     item_height: int = 38
     custom_api_url: str = ""
     use_custom_api: bool = False
+    data_source: str = "sina"
 
 
 def _fetch_json(url: str, timeout: int = 10) -> dict:
@@ -143,18 +144,17 @@ class NewsBackend(QObject):
         """获取新闻数据"""
         news = []
         source = "新浪新闻"
+        data_source = self._config.data_source
 
-
-        # 如果启用了自定义 API
-        if self._config.use_custom_api and self._config.custom_api_url:
+        # 根据选择的数据源获取新闻
+        if data_source == "custom" and self._config.custom_api_url:
+            # 自定义 API
             try:
                 custom_url = self._config.custom_api_url.strip()
                 if custom_url:
                     data = _fetch_json(custom_url)
-                    # 尝试解析为新浪格式
                     if "result" in data:
                         news = self._parse_sina_response(data)
-                    # 尝试解析为简单列表格式
                     elif isinstance(data, list):
                         for item in data:
                             if isinstance(item, str) and item.strip():
@@ -184,18 +184,8 @@ class NewsBackend(QObject):
             except Exception:
                 pass
 
-        # 使用默认接口
-        if not news:
-            for api_url in [DEFAULT_API_DOMESTIC, DEFAULT_API_INTL, DEFAULT_API_SPORT]:
-                try:
-                    data = _fetch_json(api_url)
-                    news.extend(self._parse_sina_response(data))
-                except Exception as e:
-                    pass
-            source = "新浪新闻"
-
-        # 备用接口：今日头条热榜
-        if not news:
+        elif data_source == "toutiao":
+            # 今日头条热榜
             try:
                 tt_data = _fetch_json(API_TOUTIAO_HOT)
                 for item in (tt_data.get("data") or []):
@@ -204,12 +194,11 @@ class NewsBackend(QObject):
                     if title:
                         news.append({"title": title, "url": url, "media_name": "今日头条"})
                 source = "今日头条热榜"
-            except Exception as e:
+            except Exception:
                 pass
 
-
-        # 备用接口：澎湃新闻
-        if not news:
+        elif data_source == "pengpai":
+            # 澎湃新闻
             try:
                 pp_data = _fetch_json(API_PENGPAI)
                 for item in (pp_data.get("data", {}).get("hotNews") or []):
@@ -218,8 +207,18 @@ class NewsBackend(QObject):
                     if title:
                         news.append({"title": title, "url": url, "media_name": "澎湃新闻"})
                 source = "澎湃新闻"
-            except Exception as e:
+            except Exception:
                 pass
+
+        else:
+            # 新浪新闻（默认）
+            for api_url in [DEFAULT_API_DOMESTIC, DEFAULT_API_INTL, DEFAULT_API_SPORT]:
+                try:
+                    data = _fetch_json(api_url)
+                    news.extend(self._parse_sina_response(data))
+                except Exception:
+                    pass
+            source = "新浪新闻"
 
         if news:
             self._apply_data(news, source)
@@ -362,6 +361,14 @@ class NewsBackend(QObject):
     @Slot(result=bool)
     def getUseCustomApi(self) -> bool:
         return bool(self._config.use_custom_api)
+
+    @Slot(str)
+    def setDataSource(self, source: str) -> None:
+        self._config.data_source = str(source).strip()
+
+    @Slot(result=str)
+    def getDataSource(self) -> str:
+        return str(self._config.data_source)
 
 
 class Plugin(CW2Plugin):

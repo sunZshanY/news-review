@@ -46,11 +46,21 @@ PluginPage {
             ComboBox {
                 id: sourceCombo
                 width: 160
-                model: [qsTr("默认（新浪新闻）"), qsTr("自定义 API")]
-                currentIndex: root.newsBackend ? (root.newsBackend.getUseCustomApi() ? 1 : 0) : 0
+                model: [qsTr("新浪新闻"), qsTr("今日头条热榜"), qsTr("澎湃新闻"), qsTr("自定义 API")]
+                currentIndex: {
+                    if (!root.newsBackend) return 0
+                    var src = root.newsBackend.getDataSource()
+                    if (src === "toutiao") return 1
+                    if (src === "pengpai") return 2
+                    if (src === "custom") return 3
+                    return 0
+                }
                 onCurrentIndexChanged: {
-                    if (root.newsBackend)
-                        root.newsBackend.setUseCustomApi(currentIndex === 1)
+                    if (root.newsBackend) {
+                        var sources = ["sina", "toutiao", "pengpai", "custom"]
+                        root.newsBackend.setDataSource(sources[currentIndex])
+                        root.newsBackend.setUseCustomApi(currentIndex === 3)
+                    }
                 }
             }
         }
@@ -169,9 +179,12 @@ PluginPage {
 
                 Text {
                     text: {
-                        if (root.newsBackend && root.newsBackend.getUseCustomApi())
-                            return qsTr("使用自定义 API")
-                        return qsTr("默认：新浪新闻")
+                        if (!root.newsBackend) return qsTr("默认：新浪新闻")
+                        var src = root.newsBackend.getDataSource()
+                        if (src === "toutiao") return qsTr("今日头条热榜")
+                        if (src === "pengpai") return qsTr("澎湃新闻")
+                        if (src === "custom") return qsTr("自定义 API")
+                        return qsTr("新浪新闻")
                     }
                     typography: Typography.Caption
                     color: Colors.proxy.textSecondaryColor
