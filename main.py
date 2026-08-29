@@ -191,7 +191,7 @@ class NewsBackend(QObject):
                     data = _fetch_json(api_url)
                     news.extend(self._parse_sina_response(data))
                 except Exception as e:
-
+                    pass
             source = "新浪新闻"
 
         # 备用接口：今日头条热榜
@@ -205,6 +205,7 @@ class NewsBackend(QObject):
                         news.append({"title": title, "url": url, "media_name": "今日头条"})
                 source = "今日头条热榜"
             except Exception as e:
+                pass
 
 
         # 备用接口：澎湃新闻
@@ -218,13 +219,11 @@ class NewsBackend(QObject):
                         news.append({"title": title, "url": url, "media_name": "澎湃新闻"})
                 source = "澎湃新闻"
             except Exception as e:
-
-
+                pass
 
         if news:
             self._apply_data(news, source)
         else:
-
             self._status = "error"
             self.statusChanged.emit("error")
 
