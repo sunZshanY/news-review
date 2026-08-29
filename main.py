@@ -98,6 +98,7 @@ class NewsBackend(QObject):
     def start(self) -> None:
         """插件加载完成后启动：先立刻抓取，再开始定时器"""
         self._restart_timer()
+
         QTimer.singleShot(500, self.refresh)
 
     # ---------------- 数据抓取 ----------------
@@ -106,8 +107,10 @@ class NewsBackend(QObject):
         """立即刷新新闻（异步执行，不阻塞界面）"""
         with self._lock:
             if self._fetching:
+
                 return
             self._fetching = True
+
         self._status = "loading"
         self.statusChanged.emit("loading")
         threading.Thread(target=self._fetch_worker, daemon=True).start()
@@ -115,7 +118,8 @@ class NewsBackend(QObject):
     def _fetch_worker(self) -> None:
         try:
             self._fetch_news()
-        except Exception:
+        except Exception as e:
+
             self._status = "error"
             self.statusChanged.emit("error")
         finally:
@@ -139,7 +143,7 @@ class NewsBackend(QObject):
         """获取新闻数据"""
         news = []
         source = "新浪新闻"
-        print("[今日新闻] 开始获取新闻...")
+
 
         # 如果启用了自定义 API
         if self._config.use_custom_api and self._config.custom_api_url:
@@ -186,8 +190,8 @@ class NewsBackend(QObject):
                 try:
                     data = _fetch_json(api_url)
                     news.extend(self._parse_sina_response(data))
-                except Exception:
-                    pass
+                except Exception as e:
+
             source = "新浪新闻"
 
         # 备用接口：今日头条热榜
@@ -200,8 +204,8 @@ class NewsBackend(QObject):
                     if title:
                         news.append({"title": title, "url": url, "media_name": "今日头条"})
                 source = "今日头条热榜"
-            except Exception:
-                pass
+            except Exception as e:
+
 
         # 备用接口：澎湃新闻
         if not news:
@@ -213,20 +217,20 @@ class NewsBackend(QObject):
                     if title:
                         news.append({"title": title, "url": url, "media_name": "澎湃新闻"})
                 source = "澎湃新闻"
-            except Exception:
-                pass
+            except Exception as e:
 
-        print(f"[今日新闻] 获取完成，共 {len(news)} 条新闻，来源: {source}")
+
+
         if news:
             self._apply_data(news, source)
         else:
-            print("[今日新闻] 所有数据源均失败")
+
             self._status = "error"
             self.statusChanged.emit("error")
 
     def _apply_data(self, news: list, source: str) -> None:
         now = datetime.now()
-        print(f"[今日新闻] 发射 dataChanged 信号，{len(news)} 条")
+
         titles = {n["title"] for n in news}
         is_first = not self._data["updated"]
         has_new = not is_first and not titles.issubset(self._last_titles)
@@ -274,6 +278,26 @@ class NewsBackend(QObject):
     @Slot(result="QVariantMap")
     def getData(self) -> dict:
         return self._data
+
+    @Slot(result=str)
+    def getDate(self) -> str:
+        return self._data.get("date", "")
+
+    @Slot(result=str)
+    def getUpdated(self) -> str:
+        return self._data.get("updated", "")
+
+    @Slot(result=str)
+    def getSource(self) -> str:
+        return self._data.get("source", "")
+
+    @Slot(result=list)
+    def getNewsList(self) -> list:
+        return self._data.get("news", [])
+
+    @Slot(result=str)
+    def getNewsJson(self) -> str:
+        return json.dumps(self._data.get("news", []), ensure_ascii=False)
 
     @Slot(result=str)
     def getStatus(self) -> str:
@@ -381,9 +405,9 @@ class Plugin(CW2Plugin):
         )
 
         self.backend.start()
-        print(f"[今日新闻] 插件已加载")
+
 
     def on_unload(self):
         if self.backend is not None:
             self.backend._timer.stop()
-        print(f"[今日新闻] 插件已卸载")
+

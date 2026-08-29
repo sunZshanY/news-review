@@ -1,6 +1,6 @@
 [project]
 name = "com-newsreview-news"
-version = "1.5.6"
+version = "1.6.0"
 description = "A Class Widgets 2 news reading plugin."
 authors = [
     {name = "NewsReview"},

@@ -66,19 +66,29 @@ Widget {
 
     function pullData() {
         if (!backend) return
-        if (backend.getData) {
-            let d = backend.getData()
-            if (d && d.news && d.news.length > 0) {
-                let newUpdated = d.updated || ""
-                if (newUpdated !== root._lastUpdated) {
-                    root.newsData = d
-                    root._lastUpdated = newUpdated
-                    root._lastNewsCount = d.news.length
-                    root.status = "ready"
-                    Qt.callLater(tickerArea.restartScroll)
+        try {
+            if (backend.getNewsJson) {
+                let jsonStr = backend.getNewsJson()
+                if (jsonStr && jsonStr !== "[]") {
+                    let nl = JSON.parse(jsonStr)
+                    if (nl && nl.length > 0) {
+                        let newUpdated = backend.getUpdated ? backend.getUpdated() : ""
+                        if (newUpdated !== root._lastUpdated) {
+                            root.newsData = {
+                                date: backend.getDate ? backend.getDate() : "",
+                                updated: newUpdated,
+                                source: backend.getSource ? backend.getSource() : "",
+                                news: nl
+                            }
+                            root._lastUpdated = newUpdated
+                            root._lastNewsCount = nl.length
+                            root.status = "ready"
+                            Qt.callLater(tickerArea.restartScroll)
+                        }
+                    }
                 }
             }
-        }
+        } catch (e) {}
         if (backend.getStatus) {
             let st = backend.getStatus()
             if (st === "error" && root.status !== "ready") root.status = st
@@ -98,14 +108,7 @@ Widget {
     }
 
     function _onDataChanged(d) {
-        if (d) {
-            root.newsData = d
-            root._lastUpdated = d.updated || ""
-            root._lastNewsCount = root.newsDataList.length
-            root.status = root.newsDataList.length > 0 ? "ready" : "error"
-            if (root.newsDataList.length > 0)
-                Qt.callLater(tickerArea.restartScroll)
-        }
+        pullData()
     }
 
     function _onStatusChanged(st) {
