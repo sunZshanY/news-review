@@ -15,6 +15,7 @@
 
 「今日新闻」是一款基于 **Python + QML** 的 Class Widgets 2 插件，可在桌面小组件上阅览当日**国内**、**国际**与**体育**新闻。
 
+- 使用deepseek-v4-pro gpt5.6-sol mimo2.5pro进行开发
 - 内置多个数据源：新浪新闻（默认）、今日头条热榜、澎湃新闻
 - 支持自定义 JSON API 数据源
 - 自动定时刷新、滚动播报、更新桌面通知
@@ -95,3 +96,5 @@ git push origin v1.6.3
 ## 版权 / License
 
 本项目基于 [MIT 协议](LICENSE) 开源。
+
+<p align="center"><b>新人开发，请多多关照呢喵❤️~</b></p>
