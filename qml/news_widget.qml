@@ -16,7 +16,7 @@ Widget {
     property real contentWidth: root.width - (root.miniMode ? 16 : 24) * 2
 
     implicitHeight: miniMode ? 32 : ((settings && settings.widget_height !== undefined) ? settings.widget_height : 280)
-    radius: 16
+    cornerRadius: 16
 
     property var newsData: ({ date: "", updated: "", source: "", news: [] })
     property string status: "idle"

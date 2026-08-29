@@ -28,7 +28,7 @@ SettingsLayout {
 
         icon.name: "ic_fluent_alert_20_regular"
         title: qsTr("热度标记")
-        description: qsTr("为高热度新闻显示"热"标记")
+        description: qsTr("为高热度新闻显示“热”标记")
 
         Switch {
             id: scoreSwitch
