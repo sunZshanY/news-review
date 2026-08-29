@@ -54,28 +54,6 @@ pip install class-widgets-sdk
 - GitHub：[Class-Widgets/class-widgets-sdk](https://github.com/Class-Widgets/class-widgets-sdk)
 - 插件模板：[Class-Widgets/Plugin-Template-V2](https://github.com/Class-Widgets/plugin-template-v2)
 
-### 本地构建
-
-```bash
-git clone https://github.com/sunZshanY/news-review.git
-cd news-review
-pip install -e .
-
-# 打包为 .cwplugin
-cw-plugin-pack
-
-# 打包为 .zip
-cw-plugin-pack --format zip
-```
-
-### 发布
-
-推送 `v*.*.*` 格式的标签后，GitHub Actions 会自动构建并创建 Release：
-
-```bash
-git tag -a v1.6.3 -m "版本说明"
-git push origin v1.6.3
-```
 
 ## 更新日志 / Changelog
 
