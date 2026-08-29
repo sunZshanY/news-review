@@ -9,11 +9,15 @@ Widget {
 
     text: qsTr("今日新闻")
 
-    implicitWidth: 380
-
     property real contentWidth: root.width - (root.miniMode ? 16 : 24) * 2
 
-    implicitHeight: miniMode ? 32 : ((settings && settings.widget_height !== undefined) ? settings.widget_height : 280)
+    property int configWidth: (backend && backend.getWidgetWidth) ? backend.getWidgetWidth() : 320
+    property int configHeight: (backend && backend.getWidgetHeight) ? backend.getWidgetHeight() : 280
+    property int configItemHeight: (backend && backend.getItemHeight) ? backend.getItemHeight() : 38
+
+    implicitWidth: configWidth
+    implicitHeight: miniMode ? 56 : configHeight
+    height: miniMode ? 56 : configHeight
     cornerRadius: 16
 
     property var newsData: ({ date: "", updated: "", source: "", news: [] })
@@ -35,7 +39,7 @@ Widget {
 
     readonly property int maxItems: (settings && settings.max_items !== undefined) ? settings.max_items : 8
     readonly property bool showScore: settings ? (settings.show_score !== false) : true
-    readonly property int itemHeight: (settings && settings.item_height !== undefined) ? settings.item_height : 38
+    readonly property int itemHeight: configItemHeight
 
     readonly property var newsDataList: newsData && Array.isArray(newsData.news) ? newsData.news : []
 
@@ -294,16 +298,32 @@ Widget {
                 }
             }
 
-            NumberAnimation {
+            SequentialAnimation {
                 id: scrollAnim
-                target: newsList
-                property: "contentY"
-                from: 0
-                to: Math.max(0, newsList.contentHeight - newsList.height)
-                duration: Math.max(1, newsList.count - Math.floor(newsList.height / root.itemHeight)) * 3000
-                easing.type: Easing.InOutQuad
                 running: newsList.count > 0 && root.status === "ready"
                         && newsList.contentHeight > newsList.height
+                loops: Animation.Infinite
+
+                NumberAnimation {
+                    target: newsList
+                    property: "contentY"
+                    from: 0
+                    to: Math.max(0, newsList.contentHeight - newsList.height)
+                    duration: Math.max(1, newsList.count - Math.floor(newsList.height / root.itemHeight)) * 3000
+                    easing.type: Easing.InOutQuad
+                }
+
+                PauseAnimation { duration: 4000 }
+
+                NumberAnimation {
+                    target: newsList
+                    property: "contentY"
+                    to: 0
+                    duration: 800
+                    easing.type: Easing.InOutQuad
+                }
+
+                PauseAnimation { duration: 2000 }
             }
 
             function restartScroll() {

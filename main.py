@@ -31,7 +31,7 @@ API_PENGPAI = "https://cache.thepaper.cn/contentapi/wwwIndex/rightSidebar"
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) NewsReviewPlugin/1.6.1"
+    "(KHTML, like Gecko) NewsReviewPlugin/1.6.2"
 )
 
 WIDGET_ID = "com.newsreview.news.widget"
