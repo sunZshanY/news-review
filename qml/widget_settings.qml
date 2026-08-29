@@ -51,17 +51,19 @@ SettingsLayout {
 
         icon.name: "ic_fluent_resize_20_regular"
         title: qsTr("组件宽度")
-        description: qsTr("新闻组件的宽度（默认 480）")
+        description: qsTr("新闻组件的宽度（默认 320）")
 
         SpinBox {
             id: widthSpin
             from: 200
             to: 500
             stepSize: 10
-            value: backend ? backend.getWidgetWidth() : 320
             onValueChanged: {
-                if (backend && widthSpin.enabled)
-                    backend.setWidgetWidth(Math.round(value))
+                if (settings && widthSpin.enabled)
+                    settings.widget_width = Math.round(widthSpin.value)
+            }
+            Component.onCompleted: {
+                widthSpin.value = (settings && settings.widget_width !== undefined) ? settings.widget_width : 320
             }
         }
     }
@@ -71,17 +73,19 @@ SettingsLayout {
 
         icon.name: "ic_fluent_resize_20_regular"
         title: qsTr("组件高度")
-        description: qsTr("新闻组件的高度（默认 240）")
+        description: qsTr("新闻组件的高度（默认 280）")
 
         SpinBox {
             id: heightSpin
             from: 150
             to: 500
             stepSize: 10
-            value: backend ? backend.getWidgetHeight() : 280
             onValueChanged: {
-                if (backend && heightSpin.enabled)
-                    backend.setWidgetHeight(Math.round(value))
+                if (settings && heightSpin.enabled)
+                    settings.widget_height = Math.round(heightSpin.value)
+            }
+            Component.onCompleted: {
+                heightSpin.value = (settings && settings.widget_height !== undefined) ? settings.widget_height : 280
             }
         }
     }
@@ -98,10 +102,12 @@ SettingsLayout {
             from: 28
             to: 60
             stepSize: 2
-            value: backend ? backend.getItemHeight() : 38
             onValueChanged: {
-                if (backend && itemHeightSpin.enabled)
-                    backend.setItemHeight(Math.round(value))
+                if (settings && itemHeightSpin.enabled)
+                    settings.item_height = Math.round(itemHeightSpin.value)
+            }
+            Component.onCompleted: {
+                itemHeightSpin.value = (settings && settings.item_height !== undefined) ? settings.item_height : 38
             }
         }
     }

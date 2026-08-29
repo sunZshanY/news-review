@@ -11,14 +11,24 @@ Widget {
 
     property real contentWidth: root.width - (root.miniMode ? 16 : 24) * 2
 
-    property int configWidth: (backend && backend.getWidgetWidth) ? backend.getWidgetWidth() : 320
-    property int configHeight: (backend && backend.getWidgetHeight) ? backend.getWidgetHeight() : 280
-    property int configItemHeight: (backend && backend.getItemHeight) ? backend.getItemHeight() : 38
+    property int configWidth: (settings && settings.widget_width !== undefined) ? settings.widget_width
+        : ((backend && backend.getWidgetWidth) ? backend.getWidgetWidth() : 320)
+    property int configHeight: (settings && settings.widget_height !== undefined) ? settings.widget_height
+        : ((backend && backend.getWidgetHeight) ? backend.getWidgetHeight() : 280)
+    property int configItemHeight: (settings && settings.item_height !== undefined) ? settings.item_height
+        : ((backend && backend.getItemHeight) ? backend.getItemHeight() : 38)
 
     implicitWidth: configWidth
     implicitHeight: miniMode ? 56 : configHeight
     height: miniMode ? 56 : configHeight
     cornerRadius: 16
+
+    onConfigWidthChanged: {
+        if (root.status === "ready") Qt.callLater(tickerArea.restartScroll)
+    }
+    onConfigHeightChanged: {
+        if (root.status === "ready") Qt.callLater(tickerArea.restartScroll)
+    }
 
     property var newsData: ({ date: "", updated: "", source: "", news: [] })
     property string status: "idle"

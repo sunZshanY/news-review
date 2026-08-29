@@ -31,7 +31,7 @@ API_PENGPAI = "https://cache.thepaper.cn/contentapi/wwwIndex/rightSidebar"
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) NewsReviewPlugin/1.6.2"
+    "(KHTML, like Gecko) NewsReviewPlugin/1.6.3"
 )
 
 WIDGET_ID = "com.newsreview.news.widget"
@@ -401,6 +401,9 @@ class Plugin(CW2Plugin):
             default_settings={
                 "max_items": 8,
                 "show_score": True,
+                "widget_width": 320,
+                "widget_height": 280,
+                "item_height": 38,
             },
         )
 
