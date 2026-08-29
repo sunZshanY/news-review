@@ -18,8 +18,6 @@ Widget {
 
     property var newsData: ({ date: "", updated: "", source: "", news: [] })
     property string status: "idle"
-    property int _lastNewsCount: 0
-    property string _lastUpdated: ""
 
     readonly property bool isDark: Theme.isDark()
     readonly property color textColor: Colors.proxy.textColor !== undefined
@@ -56,6 +54,7 @@ Widget {
         }
     }
 
+    // 定时刷新
     Timer {
         id: refreshTimer
         interval: 30 * 60 * 1000
@@ -64,77 +63,45 @@ Widget {
         onTriggered: root.refreshNews()
     }
 
-    function pullData() {
+    function syncBackendData() {
         if (!backend) return
         if (backend.getData) {
-            let d = backend.getData()
-            if (d && d.updated && d.updated !== root._lastUpdated) {
+            let data = backend.getData()
+            if (data) root.newsData = data
+        }
+        if (backend.getStatus) root.status = backend.getStatus()
+    }
+
+    Component.onCompleted: {
+        Qt.callLater(root.syncBackendData)
+    }
+
+    // 后端数据同步
+    onBackendChanged: {
+        if (backend) {
+            backendConn.target = backend
+            Qt.callLater(root.syncBackendData)
+        } else {
+            backendConn.target = null
+        }
+    }
+
+    Connections {
+        id: backendConn
+        function onDataChanged(d) {
+            if (d) {
                 root.newsData = d
-                root._lastUpdated = d.updated || ""
-                root._lastNewsCount = root.newsDataList.length
                 root.status = root.newsDataList.length > 0 ? "ready" : "error"
                 if (root.newsDataList.length > 0)
                     Qt.callLater(tickerArea.restartScroll)
             }
         }
-        if (backend.getStatus) {
-            let st = backend.getStatus()
-            if (root.status !== "ready") root.status = st
+        function onStatusChanged(st) {
+            if (root.status !== "ready" || st === "ready") root.status = st
         }
     }
 
-    property bool _signalConnected: false
-
-    function tryConnectSignals() {
-        if (!backend || _signalConnected) return
-        try {
-            backend.dataChanged.connect(root._onDataChanged)
-            backend.statusChanged.connect(root._onStatusChanged)
-            _signalConnected = true
-        } catch (e) {}
-    }
-
-    function _onDataChanged(d) {
-        if (d) {
-            root.newsData = d
-            root._lastUpdated = d.updated || ""
-            root._lastNewsCount = root.newsDataList.length
-            root.status = root.newsDataList.length > 0 ? "ready" : "error"
-            if (root.newsDataList.length > 0)
-                Qt.callLater(tickerArea.restartScroll)
-        }
-    }
-
-    function _onStatusChanged(st) {
-        if (root.status !== "ready" || st === "ready") root.status = st
-    }
-
-    Component.onCompleted: {
-        pollTimer.start()
-    }
-
-    onBackendChanged: {
-        tryConnectSignals()
-        pullData()
-    }
-
-    Timer {
-        id: pollTimer
-        interval: 1000
-        repeat: true
-        running: false
-        property int attempts: 0
-        onTriggered: {
-            attempts++
-            if (!backend) return
-            tryConnectSignals()
-            pullData()
-            if (root.newsDataList.length > 0 || root.status === "error") {
-                interval = 30000
-            }
-        }
-    }
-
+    // 迷你模式 - 新闻滚动条
     Item {
         visible: miniMode
         anchors.fill: parent
@@ -186,12 +153,14 @@ Widget {
         }
     }
 
+    // 常规模式 - 新闻滚动
     ColumnLayout {
         visible: !miniMode
         anchors.fill: parent
         anchors.margins: 12
         spacing: 0
 
+        // 新闻滚动区域
         Item {
             id: tickerArea
             Layout.fillWidth: true
@@ -246,27 +215,42 @@ Widget {
                             }
                         }
 
-                        ColumnLayout {
+                        Text {
                             Layout.fillWidth: true
-                            spacing: 2
+                            text: modelData.title || ""
+                            font.pixelSize: 13
+                            color: root.textColor
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                        }
 
+                        Rectangle {
+                            visible: root.showScore && modelData.score >= 80
+                            implicitWidth: hotText.implicitWidth + 8
+                            implicitHeight: 16
+                            radius: 4
+                            color: root.isDark ? "#33FF7E79" : "#33E81123"
                             Text {
-                                Layout.fillWidth: true
-                                text: modelData.title || ""
-                                font.pixelSize: 13
-                                color: root.textColor
-                                elide: Text.ElideRight
-                                maximumLineCount: 1
+                                id: hotText
+                                anchors.centerIn: parent
+                                text: qsTr("热")
+                                font.pixelSize: 9
+                                color: root.isDark ? "#FF7E79" : "#E81123"
                             }
+                        }
 
+                        Rectangle {
+                            visible: root.showScore && modelData.score >= 60 && modelData.score < 80
+                            implicitWidth: recommendText.implicitWidth + 8
+                            implicitHeight: 16
+                            radius: 4
+                            color: root.isDark ? "#33FFB900" : "#33FF8C00"
                             Text {
-                                Layout.fillWidth: true
-                                visible: modelData.media_name && modelData.media_name !== ""
-                                text: modelData.media_name || ""
-                                font.pixelSize: 10
-                                color: root.subTextColor
-                                elide: Text.ElideRight
-                                maximumLineCount: 1
+                                id: recommendText
+                                anchors.centerIn: parent
+                                text: qsTr("荐")
+                                font.pixelSize: 9
+                                color: root.isDark ? "#FFB900" : "#FF8C00"
                             }
                         }
 
@@ -288,6 +272,7 @@ Widget {
                 }
             }
 
+            // 自动滚动动画
             NumberAnimation {
                 id: scrollAnim
                 target: newsList
@@ -305,6 +290,7 @@ Widget {
                 scrollAnim.restart()
             }
 
+            // 空状态
             Item {
                 anchors.fill: parent
                 visible: root.newsDataList.length === 0
@@ -351,6 +337,7 @@ Widget {
             }
         }
 
+        // 底部工具栏
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: 4

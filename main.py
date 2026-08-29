@@ -138,6 +138,7 @@ class NewsBackend(QObject):
         """获取新闻数据"""
         news = []
         source = "新浪新闻"
+        print("[今日新闻] 开始获取新闻...")
 
         # 如果启用了自定义 API
         if self._config.use_custom_api and self._config.custom_api_url:
@@ -205,14 +206,17 @@ class NewsBackend(QObject):
             except Exception:
                 pass
 
+        print(f"[今日新闻] 获取完成，共 {len(news)} 条新闻，来源: {source}")
         if news:
             self._apply_data(news, source)
         else:
+            print("[今日新闻] 所有数据源均失败")
             self._status = "error"
             self.statusChanged.emit("error")
 
     def _apply_data(self, news: list, source: str) -> None:
         now = datetime.now()
+        print(f"[今日新闻] 发射 dataChanged 信号，{len(news)} 条")
         titles = {n["title"] for n in news}
         is_first = not self._data["updated"]
         has_new = not is_first and not titles.issubset(self._last_titles)
