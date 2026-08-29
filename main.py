@@ -26,7 +26,8 @@ DEFAULT_API_INTL = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=251
 DEFAULT_API_SPORT = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2512&k=&num=20&page=1"
 
 # 备用接口
-API_BACKUP = "https://api.vvhan.com/api/60s"
+API_TOUTIAO_HOT = "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc"
+API_PENGPAI = "https://cache.thepaper.cn/contentapi/wwwIndex/rightSidebar"
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -189,20 +190,29 @@ class NewsBackend(QObject):
                     pass
             source = "新浪新闻"
 
-        # 备用接口
+        # 备用接口：今日头条热榜
         if not news:
             try:
-                backup_data = _fetch_json(API_BACKUP)
-                if isinstance(backup_data, list):
-                    for item in backup_data:
-                        if isinstance(item, str) and item.strip():
-                            news.append({"title": item.strip(), "url": "", "media_name": "每日简报"})
-                elif isinstance(backup_data, dict):
-                    data_list = backup_data.get("data") or backup_data.get("news") or []
-                    for item in data_list:
-                        if isinstance(item, str) and item.strip():
-                            news.append({"title": item.strip(), "url": "", "media_name": "每日简报"})
-                source = "每日简报"
+                tt_data = _fetch_json(API_TOUTIAO_HOT)
+                for item in (tt_data.get("data") or []):
+                    title = str(item.get("Title", "")).strip()
+                    url = str(item.get("Url", "")).strip()
+                    if title:
+                        news.append({"title": title, "url": url, "media_name": "今日头条"})
+                source = "今日头条热榜"
+            except Exception:
+                pass
+
+        # 备用接口：澎湃新闻
+        if not news:
+            try:
+                pp_data = _fetch_json(API_PENGPAI)
+                for item in (pp_data.get("data", {}).get("hotNews") or []):
+                    title = str(item.get("name", "")).strip()
+                    url = str(item.get("linkUrl", "")).strip()
+                    if title:
+                        news.append({"title": title, "url": url, "media_name": "澎湃新闻"})
+                source = "澎湃新闻"
             except Exception:
                 pass
 
