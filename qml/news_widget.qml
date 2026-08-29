@@ -68,18 +68,21 @@ Widget {
         if (!backend) return
         if (backend.getData) {
             let d = backend.getData()
-            if (d && d.updated && d.updated !== root._lastUpdated) {
-                root.newsData = d
-                root._lastUpdated = d.updated || ""
-                root._lastNewsCount = root.newsDataList.length
-                root.status = root.newsDataList.length > 0 ? "ready" : "error"
-                if (root.newsDataList.length > 0)
+            if (d && d.news && d.news.length > 0) {
+                let newUpdated = d.updated || ""
+                if (newUpdated !== root._lastUpdated) {
+                    root.newsData = d
+                    root._lastUpdated = newUpdated
+                    root._lastNewsCount = d.news.length
+                    root.status = "ready"
                     Qt.callLater(tickerArea.restartScroll)
+                }
             }
         }
         if (backend.getStatus) {
             let st = backend.getStatus()
-            if (root.status !== "ready") root.status = st
+            if (st === "error" && root.status !== "ready") root.status = st
+            if (st === "loading") root.status = "loading"
         }
     }
 
