@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      CWPT_TOKEN: ${{ secrets.CW_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,8 +46,6 @@ jobs:
       
       - name: Publish to plugin registry
         if: ${{ env.CWPT_TOKEN != '' }}
-        env:
-          CWPT_TOKEN: ${{ secrets.CWPT_TOKEN }}
         run: |
           cw-plugin-publish
       

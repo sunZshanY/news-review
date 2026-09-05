@@ -1,7 +1,7 @@
 {
   "id": "com.newsreview.news.cwplugin",
   "name": "今日新闻",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "api_version": ">=0.4.2",
   "entry": "main.py",
   "author": "NewsReview",
