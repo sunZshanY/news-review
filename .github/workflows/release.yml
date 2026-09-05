@@ -46,6 +46,7 @@ jobs:
       
       - name: Publish to plugin registry
         if: ${{ env.CWPT_TOKEN != '' }}
+        continue-on-error: true
         run: |
           cw-plugin-publish
       
