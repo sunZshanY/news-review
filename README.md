@@ -15,6 +15,7 @@
 
 「今日新闻」是一款基于 **Python + QML** 的 Class Widgets 2 插件，可在桌面小组件上阅览当日**国内**、**国际**与**体育**新闻。
 
+- 使用deepseek-v4-pro进行开发
 - 内置多个数据源：新浪新闻（默认）、今日头条热榜、澎湃新闻
 - 支持自定义 JSON API 数据源
 - 自动定时刷新、滚动播报、更新桌面通知
@@ -53,28 +54,6 @@ pip install class-widgets-sdk
 - GitHub：[Class-Widgets/class-widgets-sdk](https://github.com/Class-Widgets/class-widgets-sdk)
 - 插件模板：[Class-Widgets/Plugin-Template-V2](https://github.com/Class-Widgets/plugin-template-v2)
 
-### 本地构建
-
-```bash
-git clone https://github.com/sunZshanY/news-review.git
-cd news-review
-pip install -e .
-
-# 打包为 .cwplugin
-cw-plugin-pack
-
-# 打包为 .zip
-cw-plugin-pack --format zip
-```
-
-### 发布
-
-推送 `v*.*.*` 格式的标签后，GitHub Actions 会自动构建并创建 Release：
-
-```bash
-git tag -a v1.6.3 -m "版本说明"
-git push origin v1.6.3
-```
 
 ## 更新日志 / Changelog
 
@@ -95,3 +74,5 @@ git push origin v1.6.3
 ## 版权 / License
 
 本项目基于 [MIT 协议](LICENSE) 开源。
+
+<p align="center"><b>新人开发，请多多关照呢喵❤️~</b></p>
