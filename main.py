@@ -1,16 +1,26 @@
 """
 今日新闻
-A Class Widgets 2 plugin. 新闻阅览插件，在桌面展示今日国内与国际新闻。
+A Class Widgets 2 plugin. 新闻阅览插件，在桌面展示最新国内与国际新闻。
+
+v1.6.3+1 (2026.10.3)：大面积修复“总是显示旧新闻”问题 —— 详见 news_sources.py 头部说明。
 """
 
 import json
+import os
+import sys
 import threading
 from datetime import datetime
-from urllib.request import Request, urlopen
 
 from enum import IntEnum
 from ClassWidgets.SDK import CW2Plugin, ConfigBaseModel, PluginAPI
 from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
+
+# 确保插件所在目录在 sys.path 中，保证 news_sources 可导入
+_plugin_dir = os.path.dirname(os.path.abspath(__file__))
+if _plugin_dir not in sys.path:
+    sys.path.insert(0, _plugin_dir)
+
+import news_sources
 
 
 class NotificationLevel(IntEnum):
@@ -20,21 +30,10 @@ class NotificationLevel(IntEnum):
     SYSTEM = 3
 
 
-# 默认新闻接口
-DEFAULT_API_DOMESTIC = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2510&k=&num=20&page=1"
-DEFAULT_API_INTL = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2511&k=&num=20&page=1"
-DEFAULT_API_SPORT = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2512&k=&num=20&page=1"
-
-# 备用接口
-API_TOUTIAO_HOT = "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc"
-API_PENGPAI = "https://cache.thepaper.cn/contentapi/wwwIndex/rightSidebar"
-
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) NewsReviewPlugin/1.6.3"
-)
-
 WIDGET_ID = "com.newsreview.news.widget"
+
+# 主源不足时补充到的最低条数
+MIN_ITEMS = 12
 
 
 class NewsConfig(ConfigBaseModel):
@@ -47,20 +46,8 @@ class NewsConfig(ConfigBaseModel):
     custom_api_url: str = ""
     use_custom_api: bool = False
     data_source: str = "sina"
-
-
-def _fetch_json(url: str, timeout: int = 10) -> dict:
-    """通过 urllib 请求 JSON 接口"""
-    req = Request(url, headers={"User-Agent": USER_AGENT})
-    with urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
-def _fetch_text(url: str, timeout: int = 10) -> str:
-    """通过 urllib 请求文本接口"""
-    req = Request(url, headers={"User-Agent": USER_AGENT})
-    with urlopen(req, timeout=timeout) as resp:
-        return resp.read().decode("utf-8")
+    # 新增：只显示最近 N 小时内的新闻（防旧闻核心开关）
+    max_age_hours: int = 48
 
 
 class NewsBackend(QObject):
@@ -108,7 +95,6 @@ class NewsBackend(QObject):
         """立即刷新新闻（异步执行，不阻塞界面）"""
         with self._lock:
             if self._fetching:
-
                 return
             self._fetching = True
 
@@ -120,108 +106,60 @@ class NewsBackend(QObject):
         try:
             self._fetch_news()
         except Exception as e:
-
             self._status = "error"
             self.statusChanged.emit("error")
         finally:
             with self._lock:
                 self._fetching = False
 
-    def _parse_sina_response(self, data: dict) -> list:
-        """解析新浪新闻 API 响应"""
-        news = []
-        payload = data.get("result") or {}
-        raw = payload.get("data") or []
-        for item in raw:
-            title = str(item.get("title", "")).strip()
-            url = str(item.get("url", "")).strip()
-            media = str(item.get("media_name", "")).strip()
-            if title:
-                news.append({"title": title, "url": url, "media_name": media})
-        return news
+    # ---------------- 抓取主流程：主源 + 多源自动降级 ----------------
+    def _build_attempts(self):
+        """返回 [(显示名, 抓取函数)]：首选数据源在前，其余按降级顺序补充。"""
+        data_source = str(self._config.data_source or "sina").strip()
+
+        attempts = []
+        if data_source == "custom" and self._config.custom_api_url.strip():
+            url = self._config.custom_api_url.strip()
+            attempts.append(("自定义源", lambda: news_sources.fetch_custom(url)))
+        elif data_source in news_sources.SOURCES:
+            name, fn = news_sources.SOURCES[data_source]
+            attempts.append((name, fn))
+        # data_source 无效或为默认 sina 时兜底
+        if not attempts:
+            attempts.append(news_sources.SOURCES["sina"])
+
+        for key in news_sources.FALLBACK_ORDER:
+            name, fn = news_sources.SOURCES[key]
+            if not any(a[0] == name for a in attempts):
+                attempts.append((name, fn))
+        return attempts
 
     def _fetch_news(self) -> None:
-        """获取新闻数据"""
-        news = []
-        source = "新浪新闻"
-        data_source = self._config.data_source
+        """获取新闻数据：主源抓取 → 时效过滤 → 不足时补充备用源 → 去重排序"""
+        max_age = max(int(self._config.max_age_hours), 1)
 
-        # 根据选择的数据源获取新闻
-        if data_source == "custom" and self._config.custom_api_url:
-            # 自定义 API
+        collected: list = []
+        used_sources: list = []
+
+        for name, fetch_fn in self._build_attempts():
             try:
-                custom_url = self._config.custom_api_url.strip()
-                if custom_url:
-                    data = _fetch_json(custom_url)
-                    if "result" in data:
-                        news = self._parse_sina_response(data)
-                    elif isinstance(data, list):
-                        for item in data:
-                            if isinstance(item, str) and item.strip():
-                                news.append({"title": item.strip(), "url": "", "media_name": "自定义源"})
-                            elif isinstance(item, dict):
-                                title = str(item.get("title", "")).strip()
-                                if title:
-                                    news.append({
-                                        "title": title,
-                                        "url": str(item.get("url", "")).strip(),
-                                        "media_name": str(item.get("source", item.get("media_name", "自定义源"))).strip()
-                                    })
-                    elif isinstance(data, dict):
-                        data_list = data.get("data") or data.get("news") or data.get("items") or []
-                        for item in data_list:
-                            if isinstance(item, str) and item.strip():
-                                news.append({"title": item.strip(), "url": "", "media_name": "自定义源"})
-                            elif isinstance(item, dict):
-                                title = str(item.get("title", "")).strip()
-                                if title:
-                                    news.append({
-                                        "title": title,
-                                        "url": str(item.get("url", "")).strip(),
-                                        "media_name": str(item.get("source", item.get("media_name", "自定义源"))).strip()
-                                    })
-                    source = "自定义源"
+                items = fetch_fn() or []
             except Exception:
-                pass
+                items = []
 
-        elif data_source == "toutiao":
-            # 今日头条热榜
-            try:
-                tt_data = _fetch_json(API_TOUTIAO_HOT)
-                for item in (tt_data.get("data") or []):
-                    title = str(item.get("Title", "")).strip()
-                    url = str(item.get("Url", "")).strip()
-                    if title:
-                        news.append({"title": title, "url": url, "media_name": "今日头条"})
-                source = "今日头条热榜"
-            except Exception:
-                pass
+            items = news_sources.filter_and_sort(items, max_age)
+            if items:
+                collected.extend(items)
+                used_sources.append(name)
 
-        elif data_source == "pengpai":
-            # 澎湃新闻
-            try:
-                pp_data = _fetch_json(API_PENGPAI)
-                for item in (pp_data.get("data", {}).get("hotNews") or []):
-                    title = str(item.get("name", "")).strip()
-                    url = str(item.get("linkUrl", "")).strip()
-                    if title:
-                        news.append({"title": title, "url": url, "media_name": "澎湃新闻"})
-                source = "澎湃新闻"
-            except Exception:
-                pass
+            # 主源已拿到足够数量的新鲜新闻即可停止
+            if len(collected) >= MIN_ITEMS * 2:
+                break
 
-        else:
-            # 新浪新闻（默认）
-            for api_url in [DEFAULT_API_DOMESTIC, DEFAULT_API_INTL, DEFAULT_API_SPORT]:
-                try:
-                    data = _fetch_json(api_url)
-                    news.extend(self._parse_sina_response(data))
-                except Exception:
-                    pass
-            source = "新浪新闻"
+        news = news_sources.dedupe(news_sources.filter_and_sort(collected, max_age))
 
         if news:
-            self._apply_data(news, source)
+            self._apply_data(news, " + ".join(used_sources))
         else:
             self._status = "error"
             self.statusChanged.emit("error")
@@ -313,6 +251,15 @@ class NewsBackend(QObject):
     @Slot(result=int)
     def getRefreshInterval(self) -> int:
         return int(self._config.refresh_interval)
+
+    @Slot(int)
+    def setMaxAgeHours(self, hours: int) -> None:
+        """设置新闻时效：只显示最近 N 小时内的新闻"""
+        self._config.max_age_hours = max(int(hours), 1)
+
+    @Slot(result=int)
+    def getMaxAgeHours(self) -> int:
+        return int(self._config.max_age_hours)
 
     @Slot(bool)
     def setNotifyOnUpdate(self, enabled: bool) -> None:
@@ -419,4 +366,3 @@ class Plugin(CW2Plugin):
     def on_unload(self):
         if self.backend is not None:
             self.backend._timer.stop()
-

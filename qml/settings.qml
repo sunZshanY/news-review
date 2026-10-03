@@ -41,25 +41,26 @@ PluginPage {
 
             icon.name: "ic_fluent_globe_20_regular"
             title: qsTr("数据源")
-            description: qsTr("选择新闻数据来源")
+            description: qsTr("选择新闻数据来源（任一源失效时自动降级到备用源）")
 
             ComboBox {
                 id: sourceCombo
                 width: 160
-                model: [qsTr("新浪新闻"), qsTr("今日头条热榜"), qsTr("澎湃新闻"), qsTr("自定义 API")]
+                model: [qsTr("新浪新闻"), qsTr("今日头条热榜"), qsTr("澎湃新闻"), qsTr("腾讯新闻热点榜"), qsTr("自定义 API")]
                 currentIndex: {
                     if (!root.newsBackend) return 0
                     var src = root.newsBackend.getDataSource()
                     if (src === "toutiao") return 1
                     if (src === "pengpai") return 2
-                    if (src === "custom") return 3
+                    if (src === "tencent") return 3
+                    if (src === "custom") return 4
                     return 0
                 }
                 onCurrentIndexChanged: {
                     if (root.newsBackend) {
-                        var sources = ["sina", "toutiao", "pengpai", "custom"]
+                        var sources = ["sina", "toutiao", "pengpai", "tencent", "custom"]
                         root.newsBackend.setDataSource(sources[currentIndex])
-                        root.newsBackend.setUseCustomApi(currentIndex === 3)
+                        root.newsBackend.setUseCustomApi(currentIndex === 4)
                     }
                 }
             }
@@ -68,7 +69,7 @@ PluginPage {
         // 自定义 API 设置
         SettingCard {
             Layout.fillWidth: true
-            visible: sourceCombo.currentIndex === 1
+            visible: sourceCombo.currentIndex === 4
 
             icon.name: "ic_fluent_link_20_regular"
             title: qsTr("自定义 API 地址")
@@ -93,6 +94,27 @@ PluginPage {
             Layout.bottomMargin: 4
             height: 1
             color: Colors.proxy.dividerColor || "#20000000"
+        }
+
+        // 新闻时效设置
+        SettingCard {
+            Layout.fillWidth: true
+
+            icon.name: "ic_fluent_timer_20_regular"
+            title: qsTr("新闻时效")
+            description: qsTr("只显示最近多少小时内的新闻，超过时限的旧闻自动过滤")
+
+            SpinBox {
+                id: ageSpin
+                from: 6
+                to: 168
+                stepSize: 6
+                value: root.newsBackend ? root.newsBackend.getMaxAgeHours() : 48
+                onValueChanged: {
+                    if (root.newsBackend && ageSpin.enabled)
+                        root.newsBackend.setMaxAgeHours(Math.round(value))
+                }
+            }
         }
 
         // 自动刷新间隔
@@ -183,6 +205,7 @@ PluginPage {
                         var src = root.newsBackend.getDataSource()
                         if (src === "toutiao") return qsTr("今日头条热榜")
                         if (src === "pengpai") return qsTr("澎湃新闻")
+                        if (src === "tencent") return qsTr("腾讯新闻热点榜")
                         if (src === "custom") return qsTr("自定义 API")
                         return qsTr("新浪新闻")
                     }

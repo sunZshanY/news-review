@@ -270,19 +270,52 @@ Widget {
                             Layout.fillWidth: true
                             spacing: 2
 
-                            Text {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                text: modelData.title || ""
-                                font.pixelSize: 13
-                                color: root.textColor
-                                elide: Text.ElideRight
-                                maximumLineCount: 1
+                                spacing: 6
+
+                                Rectangle {
+                                    id: hotBadge
+                                    visible: root.showScore && (modelData.hot || 0) > 0
+                                    implicitWidth: hotBadgeText.implicitWidth + 8
+                                    implicitHeight: 16
+                                    radius: 4
+                                    color: "#E5484D"
+
+                                    Text {
+                                        id: hotBadgeText
+                                        anchors.centerIn: parent
+                                        text: qsTr("热")
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                        color: "#FFFFFF"
+                                    }
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.title || ""
+                                    font.pixelSize: 13
+                                    color: root.textColor
+                                    elide: Text.ElideRight
+                                    maximumLineCount: 1
+                                }
                             }
 
                             Text {
                                 Layout.fillWidth: true
-                                visible: modelData.media_name && modelData.media_name !== ""
-                                text: modelData.media_name || ""
+                                visible: {
+                                    return (modelData.media_name && modelData.media_name !== "")
+                                        || (modelData.time && modelData.time !== "")
+                                }
+                                text: {
+                                    var parts = []
+                                    if (modelData.media_name && modelData.media_name !== "")
+                                        parts.push(modelData.media_name)
+                                    if (modelData.time && modelData.time !== "")
+                                        parts.push(modelData.time)
+                                    return parts.join(" · ")
+                                }
                                 font.pixelSize: 10
                                 color: root.subTextColor
                                 elide: Text.ElideRight
@@ -394,7 +427,12 @@ Widget {
 
             Text {
                 Layout.fillWidth: true
-                text: root.newsData.date ? qsTr("%1 · %2 条新闻").arg(root.newsData.date).arg(root.newsDataList.length) : ""
+                text: {
+                    if (!root.newsData.date) return ""
+                    var src = root.newsData.source ? (" · " + root.newsData.source) : ""
+                    var upd = root.newsData.updated ? (qsTr(" · 更新 %1").arg(root.newsData.updated)) : ""
+                    return qsTr("%1 · %2 条新闻").arg(root.newsData.date).arg(root.newsDataList.length) + src + upd
+                }
                 font.pixelSize: 10
                 color: root.subTextColor
                 elide: Text.ElideRight
