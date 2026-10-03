@@ -4,6 +4,7 @@
 
  <p>在桌面展示今日国内、国际与体育新闻的 Class Widgets 2 新闻阅览插件</p>
 
+> 2026.10.3 出现新闻内容为旧闻，现开始加急修复
  <p>
   <a href="https://github.com/sunZshanY/news-review/releases/latest"><img src="https://img.shields.io/github/v/release/sunZshanY/news-review?style=for-the-badge&color=blue" alt="最新版本"></a>
   <a href="https://github.com/sunZshanY/news-review"><img src="https://img.shields.io/github/stars/sunZshanY/news-review?style=for-the-badge&color=orange" alt="星标"></a>
