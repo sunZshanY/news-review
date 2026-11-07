@@ -4,7 +4,6 @@
 
  <p>在桌面展示今日国内、国际与体育新闻的 Class Widgets 2 新闻阅览插件</p>
 
-> 2026.10.3 已修复新闻显示旧闻的问题（v1.6.3+1）：更换实时数据源并增加时效过滤
  <p>
   <a href="https://github.com/sunZshanY/news-review/releases/latest"><img src="https://img.shields.io/github/v/release/sunZshanY/news-review?style=for-the-badge&color=blue" alt="最新版本"></a>
   <a href="https://github.com/sunZshanY/news-review"><img src="https://img.shields.io/github/stars/sunZshanY/news-review?style=for-the-badge&color=orange" alt="星标"></a>
@@ -76,6 +75,7 @@ pip install class-widgets-sdk
 
 | 版本 | 说明 |
 | :--- | :--- |
+| **v1.6.6   | 修复了旧闻的问题 |
 | **v1.6.3+1 (2026.10.3)** | 大面积修复旧闻问题：换实时接口、时效过滤、时间倒序、腾讯源、多源自动降级、显示发布时间 |
 | **v1.6.3** | 自定义尺寸保存后立即生效；修复尺寸设置无效问题 |
 | **v1.6.2** | 修复新闻内容不显示；滚动改为循环播报 |
